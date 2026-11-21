@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QOrder · Backend en vivo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b16; --bg2:#0b1122; --panel:#0f172b; --panel2:#131d36; --line:#1e2a47; --line2:#2a3a60;
+  --text:#e6ecff; --muted:#8a98bd; --dim:#5b6890;
+  --get:#4ea8ff; --post:#2fd08a; --put:#ffae3d; --del:#ff5d6c; --ws:#b98bff;
+  --ok:#2fd08a; --err:#ff5d6c; --warn:#ffcf5c; --info:#4ea8ff;
+  --student:#25d3c4; --kds:#ffae3d; --admin:#b98bff; --gateway:#ff6fb5; --system:#8a98bd;
+  --radius:14px; --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:radial-gradient(1200px 600px at 10% -10%,#16224a 0%,transparent 60%),radial-gradient(900px 500px at 110% 10%,#2a1748 0%,transparent 55%),var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:13px;overflow:hidden}
+button{font-family:inherit}
+code,pre{font-family:var(--mono)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#24345a;border-radius:8px}::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- Topbar ---------- */
+.topbar{height:64px;display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line);background:rgba(8,12,26,.75);backdrop-filter:blur(8px)}
+.brand{display:flex;align-items:center;gap:12px;min-width:250px}
+.logo{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-weight:800;font-size:19px;background:linear-gradient(135deg,#2fd08a,#4ea8ff 55%,#b98bff);color:#05101f;box-shadow:0 6px 24px rgba(78,168,255,.35)}
+.brand-title{font-weight:800;font-size:16px;letter-spacing:.2px}.brand-title span{color:var(--muted);font-weight:600}
+.brand-sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:330px}
+.pills{display:flex;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;border:1px solid var(--line2);background:var(--panel);color:var(--muted);font-weight:600;font-size:11.5px;white-space:nowrap}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block}
+.pill.on{color:var(--text);border-color:rgba(47,208,138,.45)}.pill.on i{background:var(--ok);box-shadow:0 0 0 0 rgba(47,208,138,.7);animation:pulse 1.8s infinite}
+.pill.warn i{background:var(--warn)}.pill.bad{border-color:rgba(255,93,108,.5)}.pill.bad i{background:var(--err)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,208,138,.6)}70%{box-shadow:0 0 0 8px rgba(47,208,138,0)}100%{box-shadow:0 0 0 0 rgba(47,208,138,0)}}
+.restaurant{flex:1;min-width:0;text-align:center;font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.restaurant small{display:block;color:var(--muted);font-weight:500;font-size:11px}
+.controls{display:flex;align-items:center;gap:8px}
+.btn{border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:10px;padding:8px 13px;font-weight:700;font-size:12.5px;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn:hover{border-color:#3d5288;transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(135deg,#21b979,#2fd08a);border-color:transparent;color:#03140c;box-shadow:0 6px 22px rgba(47,208,138,.3)}
+.btn.primary.playing{background:linear-gradient(135deg,#ffae3d,#ffcf5c);color:#1b1000;box-shadow:0 6px 22px rgba(255,174,61,.3)}
+.btn.ghost{background:transparent}
+.speed{color:var(--muted);font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:6px}
+select,input{background:var(--bg2);color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:12.5px}
+
+/* ---------- Grid ---------- */
+.grid{display:grid;grid-template-columns:minmax(430px,1.22fr) 372px minmax(430px,1.3fr);grid-template-rows:auto minmax(0,1.05fr) minmax(0,1fr);gap:12px;height:calc(100vh - 64px);padding:12px}
+.panel{background:linear-gradient(180deg,rgba(19,29,54,.92),rgba(13,20,40,.92));border:1px solid var(--line);border-radius:var(--radius);min-height:0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.panel-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.panel-head h2{margin:0;font-size:12px;letter-spacing:1.1px;text-transform:uppercase;color:#c3cdf0;font-weight:800}
+.panel-head .sub{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel-head .spacer{flex:1}
+.flow{grid-column:1;grid-row:1/4}
+.tracker{grid-column:2/4;grid-row:1}
+.phone-wrap{grid-column:2;grid-row:2/4;background:transparent;border:none;box-shadow:none}
+.kds{grid-column:3;grid-row:2}
+.console{grid-column:3;grid-row:3}
+.muted{color:var(--muted)}
+
+/* ---------- Flow list ---------- */
+.progress{height:3px;background:var(--line)}.progress>div{height:100%;width:0;background:linear-gradient(90deg,#2fd08a,#4ea8ff);transition:width .4s}
+.flow-list{overflow:auto;padding:10px 12px 40px;scroll-behavior:smooth}
+.banner{margin:10px 12px 0;padding:9px 12px;border-radius:10px;font-size:12px;border:1px solid rgba(255,207,92,.4);background:rgba(255,207,92,.08);color:#ffe3a3;display:none}
+.phase{margin:14px 0 8px;display:flex;align-items:center;gap:10px}
+.phase:first-child{margin-top:4px}
+.phase .num{font-family:var(--mono);font-size:11px;font-weight:700;color:#05101f;background:#c3cdf0;border-radius:6px;padding:2px 7px}
+.phase.optional .num{background:#3a4770;color:#c3cdf0}
+.phase .t{font-weight:800;font-size:13px}
+.phase .d{color:var(--muted);font-size:11.5px}
+.phase .spacer{flex:1}
+.phase .gbtn{font-size:11px;padding:4px 9px;border-radius:8px}
+.card{border:1px solid var(--line);background:rgba(10,16,33,.65);border-radius:12px;margin-bottom:7px;transition:border-color .2s,box-shadow .2s,opacity .2s}
+.card-head{display:flex;align-items:center;gap:9px;padding:8px 10px;cursor:pointer}
+.card .idx{font-family:var(--mono);font-size:10.5px;color:var(--dim);width:20px;text-align:right}
+.m{font-family:var(--mono);font-weight:700;font-size:10.5px;border-radius:6px;padding:3px 0;width:46px;text-align:center;color:#06101e;flex:none}
+.m.GET{background:var(--get)}.m.POST{background:var(--post)}.m.PUT{background:var(--put)}.m.PATCH{background:#5fe0d0}.m.DELETE{background:var(--del)}.m.WS{background:var(--ws)}
+.card .path{font-family:var(--mono);font-size:12px;font-weight:500;color:#dfe6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card .path .p{color:var(--warn)}
+.card .title{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .grow{flex:1;min-width:0}
+.actor{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;white-space:nowrap;border:1px solid}
+.actor.student{color:var(--student);border-color:rgba(37,211,196,.4);background:rgba(37,211,196,.08)}
+.actor.kds{color:var(--kds);border-color:rgba(255,174,61,.4);background:rgba(255,174,61,.08)}
+.actor.admin{color:var(--admin);border-color:rgba(185,139,255,.4);background:rgba(185,139,255,.08)}
+.actor.gateway{color:var(--gateway);border-color:rgba(255,111,181,.4);background:rgba(255,111,181,.08)}
+.actor.ops{color:#5fe0d0;border-color:rgba(95,224,208,.4);background:rgba(95,224,208,.08)}
+.actor.system{color:var(--system);border-color:rgba(138,152,189,.35);background:rgba(138,152,189,.06)}
+.lock{font-size:10px;color:var(--muted);font-family:var(--mono);border:1px dashed var(--line2);padding:2px 6px;border-radius:6px;white-space:nowrap}
+.play{width:30px;height:30px;border-radius:50%;border:1px solid var(--line2);background:var(--panel2);color:var(--text);display:grid;place-items:center;cursor:pointer;flex:none;font-size:11px;transition:.15s}
+.play:hover{background:#21b979;color:#03140c;border-color:transparent;transform:scale(1.08)}
+.card .state{font-family:var(--mono);font-size:11px;font-weight:700;white-space:nowrap}
+.card.running{border-color:var(--info);box-shadow:0 0 0 3px rgba(78,168,255,.15),0 0 30px rgba(78,168,255,.15)}
+.card.running .play{animation:spin 1s linear infinite;background:var(--info);color:#04101f;border-color:transparent}
+@keyframes spin{to{transform:rotate(360deg)}}
+.card.ok{border-color:rgba(47,208,138,.35)}.card.ok .state{color:var(--ok)}
+.card.expected{border-color:rgba(47,208,138,.35)}.card.expected .state{color:var(--ok)}
+.card.error{border-color:rgba(255,93,108,.6);box-shadow:0 0 0 3px rgba(255,93,108,.1)}.card.error .state{color:var(--err)}
+.card.skipped{opacity:.55}.card.skipped .state{color:var(--muted)}
+.card-body{display:none;border-top:1px solid var(--line);padding:10px 12px 12px}
+.card.open .card-body{display:block}
+.desc{color:#b8c3e6;font-size:12px;line-height:1.5;margin-bottom:8px}
+.desc b{color:var(--text)}
+.note{font-size:11.5px;color:#ffe3a3;background:rgba(255,207,92,.07);border:1px solid rgba(255,207,92,.25);border-radius:8px;padding:6px 9px;margin:6px 0}
+.note.good{color:#b9f5da;background:rgba(47,208,138,.07);border-color:rgba(47,208,138,.25)}
+.note.bad{color:#ffc2c8;background:rgba(255,93,108,.07);border-color:rgba(255,93,108,.3)}
+.exch{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:8px;background:#080d1c}
+.exch .rq{display:flex;gap:8px;align-items:center;padding:7px 9px;background:#0c1326;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11.5px;flex-wrap:wrap}
+.exch .rq code{color:#dfe6ff;word-break:break-all}
+.exch .hd{font-family:var(--mono);font-size:10.5px;color:var(--muted);padding:5px 9px;border-bottom:1px solid var(--line);word-break:break-all}
+.exch .hd b{color:#9fb0dc;font-weight:600}
+.exch .lbl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);padding:6px 9px 0;font-weight:800}
+.exch .rs{display:flex;gap:8px;align-items:center;padding:7px 9px;border-top:1px solid var(--line);background:#0c1326}
+.code{font-family:var(--mono);font-weight:700;font-size:11px;padding:2px 8px;border-radius:6px}
+.code.s2{background:rgba(47,208,138,.15);color:var(--ok)}.code.s4{background:rgba(255,174,61,.15);color:var(--put)}.code.s5{background:rgba(255,93,108,.15);color:var(--err)}
+.ms{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;background:rgba(47,208,138,.12);color:var(--ok)}
+.tag.bad{background:rgba(255,93,108,.12);color:var(--err)}
+pre.json{margin:0;padding:8px 10px;font-size:11.3px;line-height:1.5;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:#cfd8f6}
+.json .k{color:#8fb7ff}.json .s{color:#9ee6b8}.json .n{color:#ffcf7a}.json .b{color:#ff9ad0}.json .z{color:#8a98bd}
+.linkbtn{background:none;border:none;color:var(--info);cursor:pointer;font-size:11px;font-weight:700;padding:0}
+.cart{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.cart span{font-size:11px;font-weight:600;background:rgba(37,211,196,.1);border:1px solid rgba(37,211,196,.35);color:#a8f3ea;padding:3px 8px;border-radius:999px}
+.mini-tl{margin-top:8px;border-left:2px solid var(--line2);padding-left:12px}
+.mini-tl div{position:relative;font-size:11.5px;padding:3px 0;color:#c9d3f3}
+.mini-tl div:before{content:"";position:absolute;left:-17px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--info)}
+.mini-tl time{font-family:var(--mono);color:var(--muted);margin-right:8px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.kpi{background:#0c1326;border:1px solid var(--line);border-radius:10px;padding:8px}
+.kpi b{display:block;font-size:17px}.kpi span{font-size:10.5px;color:var(--muted)}
+
+/* ---------- Tracker ---------- */
+.tracker-body{display:flex;align-items:center;gap:18px;padding:14px 18px}
+.stepper{display:flex;align-items:flex-start;flex:1;min-width:0}
+.st{flex:1;text-align:center;position:relative;min-width:0}
+.st:not(:last-child):after{content:"";position:absolute;top:17px;left:calc(50% + 20px);right:calc(-50% + 20px);height:3px;border-radius:3px;background:var(--line2)}
+.st.done:not(:last-child):after{background:linear-gradient(90deg,#2fd08a,#4ea8ff)}
+.st .dot{width:36px;height:36px;border-radius:50%;margin:0 auto;display:grid;place-items:center;font-size:16px;background:var(--bg2);border:2px solid var(--line2);transition:.3s;position:relative;z-index:1}
+.st.done .dot{background:rgba(47,208,138,.15);border-color:var(--ok)}
+.st.current .dot{background:rgba(78,168,255,.2);border-color:var(--info);box-shadow:0 0 0 6px rgba(78,168,255,.12),0 0 24px rgba(78,168,255,.45);animation:bob 1.6s ease-in-out infinite}
+.st.fail .dot{background:rgba(255,93,108,.18);border-color:var(--err)}
+@keyframes bob{50%{transform:translateY(-3px)}}
+.st .lb{font-size:11.5px;font-weight:700;margin-top:6px;color:var(--muted)}
+.st.done .lb,.st.current .lb{color:var(--text)}
+.st .tm{font-family:var(--mono);font-size:10.5px;color:var(--dim);height:14px}
+.chips{display:grid;grid-template-columns:repeat(3,auto);gap:6px 8px}
+.chip{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:5px 10px;min-width:96px}
+.chip span{display:block;font-size:9.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);font-weight:800}
+.chip b{font-family:var(--mono);font-size:13px}
+.chip.hot b{color:var(--warn)}
+.chip.otp b{color:var(--student);letter-spacing:3px}
+.empty{color:var(--dim);font-size:12px;text-align:center;padding:10px}
+
+/* ---------- Phone ---------- */
+.phone{margin:0 auto;width:352px;height:100%;border-radius:42px;padding:12px;background:linear-gradient(160deg,#1b2440,#0a0f1e);border:1px solid #2a3760;box-shadow:0 30px 60px rgba(0,0,0,.5),inset 0 0 0 2px #0a0f1e;display:flex;flex-direction:column;position:relative}
+.screen{flex:1;border-radius:32px;overflow:hidden;display:flex;flex-direction:column;background:#0b141a;position:relative;min-height:0}
+.notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:96px;height:24px;background:#05080f;border-radius:14px;z-index:3}
+.wa-head{padding:38px 14px 10px;background:#1f2c34;display:flex;align-items:center;gap:10px;color:#e9edef}
+.wa-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#2fd08a,#4ea8ff);display:grid;place-items:center;font-weight:800;color:#05101f}
+.wa-head b{font-size:13.5px}.wa-head small{display:block;color:#8696a0;font-size:11px}
+.wa-chat{flex:1;overflow:auto;padding:10px 10px 14px;background-color:#0b141a;background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1px);background-size:18px 18px;scroll-behavior:smooth}
+.wa-sys{margin:6px auto;text-align:center;font-size:10.5px;color:#8696a0;background:#182229;border-radius:8px;padding:4px 10px;width:fit-content;max-width:90%}
+.bub{max-width:86%;margin:5px 0;padding:6px 9px 16px;border-radius:10px;font-size:12.6px;line-height:1.42;position:relative;white-space:pre-wrap;word-wrap:break-word;animation:pop .25s ease-out;color:#e9edef}
+@keyframes pop{from{transform:translateY(6px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.bub.in{background:#202c33;border-top-left-radius:3px}
+.bub.out{background:#005c4b;margin-left:auto;border-top-right-radius:3px}
+.bub .t{position:absolute;right:8px;bottom:3px;font-size:9.5px;color:#a3b3bc}
+.bub .nt{display:block;font-size:9.5px;font-weight:700;color:#53bdeb;margin-bottom:3px;letter-spacing:.2px}
+.bub a{color:#53bdeb;word-break:break-all}
+.bub .menu-it{display:flex;justify-content:space-between;gap:10px;padding:4px 6px;margin:0 -6px;border-radius:6px;cursor:pointer}
+.bub .menu-it:hover{background:rgba(255,255,255,.06)}
+.bub .menu-it.sel{background:rgba(37,211,196,.14)}
+.bub .menu-it em{font-style:normal;color:#8696a0;font-size:11px}
+.paybtn{display:block;margin-top:6px;text-align:center;background:#00a884;color:#06231c !important;font-weight:800;border-radius:8px;padding:7px;text-decoration:none}
+.typing{display:inline-flex;gap:3px;padding:10px 12px 10px}
+.typing i{width:6px;height:6px;border-radius:50%;background:#8696a0;animation:ty 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes ty{50%{transform:translateY(-4px);opacity:.5}}
+.wa-input{display:flex;gap:8px;align-items:center;padding:8px 10px 14px;background:#0b141a}
+.wa-input div{flex:1;background:#202c33;border-radius:20px;padding:9px 14px;color:#8696a0;font-size:12px}
+.wa-input span{width:36px;height:36px;border-radius:50%;background:#00a884;display:grid;place-items:center;color:#06231c;font-weight:800}
+.phone-cap{text-align:center;font-size:10.5px;color:var(--dim);margin-top:6px}
+
+/* ---------- KDS ---------- */
+.kds-cols{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;min-height:0}
+.kcol{background:rgba(8,13,28,.6);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-height:0}
+.kcol h3{margin:0;padding:8px 10px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#c3cdf0;display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}
+.kcol h3 span{font-family:var(--mono);color:var(--muted)}
+.kcol .lst{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:7px}
+.tk{background:#fdfaf3;color:#1d1a12;border-radius:10px;padding:8px 9px;box-shadow:0 6px 16px rgba(0,0,0,.35);border-top:5px solid var(--kds);animation:pop .3s ease-out;position:relative}
+.tk.flash{animation:flash 1s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 0 rgba(78,168,255,.9),0 6px 16px rgba(0,0,0,.35);transform:scale(1.03)}100%{box-shadow:0 0 0 14px rgba(78,168,255,0),0 6px 16px rgba(0,0,0,.35);transform:none}}
+.tk.c-pay{border-top-color:#ff6fb5}.tk.c-cook{border-top-color:#4ea8ff}.tk.c-ready{border-top-color:#2fd08a}
+.tk.leaving{opacity:.25;filter:grayscale(1);transition:1s}
+.tk .h{display:flex;justify-content:space-between;align-items:flex-end;gap:6px;font-weight:800;margin-top:2px}
+.tk .h b{font-size:17px;line-height:1}.tk .h b small{display:block;font-size:9px;letter-spacing:.8px;color:#7a715a;margin-bottom:2px}.tk .h>small{font-family:var(--mono);font-size:10px;color:#7a715a;white-space:nowrap}
+.tk ul{margin:5px 0;padding:0;list-style:none;font-size:12px}
+.tk li{display:flex;gap:6px}.tk li b{min-width:20px}
+.tk li em{display:block;font-style:normal;font-size:10.5px;color:#7a715a}
+.tk .f{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:10.5px;color:#5d5641;border-top:1px dashed #d8cfb8;padding-top:4px;font-family:var(--mono)}
+.tk .badge{position:absolute;top:-9px;right:8px;background:#1d1a12;color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px;letter-spacing:.4px}
+.kds-foot{display:flex;align-items:center;gap:10px;padding:7px 12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);min-height:34px}
+.kds-foot code{color:var(--ws)}
+
+/* ---------- Console ---------- */
+.log{flex:1;overflow:auto;padding:6px 0;font-family:var(--mono);font-size:11.5px;scroll-behavior:smooth}
+.row{display:grid;grid-template-columns:40px 62px minmax(110px,180px) 1fr;gap:8px;padding:4px 12px;align-items:baseline;cursor:pointer;border-left:3px solid transparent}
+.row:hover{background:rgba(255,255,255,.03)}
+.row.new{animation:rowin 1.6s ease-out;border-left-color:var(--info)}
+@keyframes rowin{0%{background:rgba(78,168,255,.25)}100%{background:transparent}}
+.row.old{opacity:.5}
+.row .seq{color:var(--dim)}.row .tm{color:var(--muted)}
+.row .ev{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .msg{color:#cdd6f4;font-family:Inter,sans-serif;font-size:12px}
+.row .msg i{font-style:normal;color:var(--muted);font-size:11px}
+.ev.c-created{color:#4ea8ff}.ev.c-accepted{color:#2fd08a}.ev.c-pay{color:#ff6fb5}.ev.c-cook{color:#ffae3d}.ev.c-ready{color:#5fe0d0}.ev.c-done{color:#b98bff}.ev.c-bad{color:#ff5d6c}.ev.c-info{color:#8a98bd}
+.sep{text-align:center;font-size:10.5px;color:var(--dim);padding:6px;letter-spacing:.5px}
+.toggle{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);cursor:pointer;user-select:none}
+
+/* ---------- Modal / toast ---------- */
+.modal{position:fixed;inset:0;background:rgba(3,6,14,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50}
+.modal.show{display:flex}
+.dialog{width:min(560px,92vw);max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:20px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.dialog.wide{width:min(900px,94vw)}
+.dialog h3{margin:0 0 4px;font-size:16px}
+.dialog p{color:var(--muted);margin:0 0 14px;font-size:12.5px;line-height:1.5}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.form label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--muted);font-weight:600}
+.form label.full{grid-column:1/3}
+.form input{padding:9px 10px;font-size:13px}
+.form .hint{font-weight:400;font-size:10.5px;color:var(--dim)}
+.dialog .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:60}
+.toast{background:var(--panel2);border:1px solid var(--line2);border-left:4px solid var(--info);border-radius:10px;padding:10px 14px;max-width:380px;font-size:12.5px;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:pop .25s}
+.toast.warn{border-left-color:var(--warn)}.toast.err{border-left-color:var(--err)}.toast.ok{border-left-color:var(--ok)}
+@media (max-width:1600px){.grid{grid-template-columns:minmax(400px,1.15fr) 340px minmax(420px,1.3fr)}.phone{width:330px}.panel-head .sub{max-width:160px}}
+kbd{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">Q</div>
+    <div><div class="brand-title">QOrder <span>· Backend en vivo</span></div><div class="brand-sub" id="targetLabel">conectando…</div></div>
+  </div>
+  <div class="pills">
+    <span class="pill" id="pillApi"><i></i>API</span>
+    <span class="pill" id="pillKds"><i></i>WS KDS</span>
+    <span class="pill" id="pillAdmin"><i></i>WS Admin</span>
+  </div>
+  <div class="restaurant" id="restaurantLabel">—<small>Restaurante de prueba</small></div>
+  <div class="controls">
+    <label class="speed">Pausa
+      <select id="speed"><option value="700">0.7 s</option><option value="1600" selected>1.6 s</option><option value="3000">3 s</option><option value="5000">5 s</option></select>
+    </label>
+    <button class="btn ghost" id="btnConfig" title="Credenciales y restaurante">⚙ Configurar</button>
+    <button class="btn ghost" id="btnReset" title="Limpiar y empezar otra corrida">⟲ Nueva demo</button>
+    <button class="btn" id="btnNext" title="Ejecuta el siguiente paso (tecla →)">⏭ Siguiente</button>
+    <button class="btn primary" id="btnPlay" title="Reproduce todo el flujo (barra espaciadora)">▶ Reproducir flujo</button>
+  </div>
+</header>
+
+<main class="grid">
+  <section class="panel flow">
+    <div class="panel-head"><h2>Endpoints del flujo</h2><span class="sub" id="flowSub">Fase · Paso · Endpoint · Response</span><span class="spacer"></span><span class="sub" id="progressLabel">0 / 0</span></div>
+    <div class="progress"><div id="progressBar"></div></div>
+    <div class="banner" id="keyBanner"></div>
+    <div class="flow-list" id="flowList"></div>
+  </section>
+
+  <section class="panel tracker">
+    <div class="tracker-body">
+      <div class="stepper" id="stepper"></div>
+      <div class="chips" id="chips"></div>
+    </div>
+  </section>
+
+  <section class="panel phone-wrap">
+    <div class="phone">
+      <div class="screen">
+        <div class="notch"></div>
+        <div class="wa-head"><div class="wa-av">Q</div><div><b>Asistente QOrder</b><small id="waStatus">en línea</small></div></div>
+        <div class="wa-chat" id="chat"></div>
+        <div class="wa-input"><div>Escribe un mensaje</div><span>➤</span></div>
+      </div>
+    </div>
+    <div class="phone-cap">Vista del estudiante · textos armados con las respuestas reales de la API</div>
+  </section>
+
+  <section class="panel kds">
+    <div class="panel-head"><h2>Pantalla KDS</h2><span class="sub" id="kdsSub">WS /ws/kds/{restaurant_id}</span><span class="spacer"></span><span class="pill" id="stationPill"><i></i>Estación</span></div>
+    <div class="kds-cols">
+      <div class="kcol"><h3>Por aceptar <span id="c-new">0</span></h3><div class="lst" id="col-new"></div></div>
+      <div class="kcol"><h3>Esperando pago <span id="c-pay">0</span></h3><div class="lst" id="col-pay"></div></div>
+      <div class="kcol"><h3>En cocina <span id="c-cook">0</span></h3><div class="lst" id="col-cook"></div></div>
+      <div class="kcol"><h3>Listas <span id="c-ready">0</span></h3><div class="lst" id="col-ready"></div></div>
+    </div>
+    <div class="kds-foot" id="kdsFoot">Esperando conexión del KDS…</div>
+  </section>
+
+  <section class="panel console">
+    <div class="panel-head"><h2>Log de eventos</h2><span class="sub" id="logSub">WS /ws/admin · order_events</span><span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="onlyMine"> solo pedidos de esta demo</label>
+      <span class="sub" id="logCount">0</span></div>
+    <div class="log" id="log"></div>
+  </section>
+</main>
+
+<div class="modal" id="cfgModal">
+  <div class="dialog">
+    <h3>Configurar la demo</h3>
+    <p>Credenciales del restaurante de prueba. Solo viven en este navegador; el proxy local las reenvía al backend. La llave interna del bot la pone el proxy (no se escribe aquí).</p>
+    <div class="form">
+      <label class="full">Restaurant ID (opcional)<input id="f-rid" spellcheck="false" placeholder="se toma del login del admin"><span class="hint">Si lo dejas vacío, se usa el restaurante del admin al iniciar sesión.</span></label>
+      <label>Correo del admin<input id="f-email" type="email" autocomplete="off"></label>
+      <label>Contraseña del admin<input id="f-pass" type="password" autocomplete="off"></label>
+      <label>Usuario KDS<input id="f-kdsu" autocomplete="off"></label>
+      <label>PIN KDS<input id="f-pin" type="password" inputmode="numeric" autocomplete="off"></label>
+      <label>Correo Dev/TI (OPS, opcional)<input id="f-opsemail" type="email" autocomplete="off" placeholder="superadmin"></label>
+      <label>Contraseña Dev/TI<input id="f-opspass" type="password" autocomplete="off"></label>
+      <label class="full">WhatsApp del estudiante (opcional)<input id="f-wa" placeholder="+502XXXXXXXX"><span class="hint">Si el número queda verificado, el pedido sale a su nombre y le llegan los WhatsApp reales. Vacío = estudiante de demo.</span></label>
+      <label>Correo UVG para mostrar el registro (opcional)<input id="f-semail" type="email" placeholder="usuario@uvg.edu.gt"></label>
+      <label>Nombre y carné<span style="display:flex;gap:6px"><input id="f-sname" placeholder="Nombre" style="flex:2;min-width:0"><input id="f-scarne" placeholder="Carné" style="flex:1;min-width:0"></span></label>
+      <label class="full" style="flex-direction:row;align-items:center;gap:8px"><input id="f-remember" type="checkbox" style="width:auto"> Recordar contraseña y PIN en este navegador</label>
+    </div>
+    <div class="actions"><button class="btn ghost" id="cfgCancel">Cancelar</button><button class="btn primary" id="cfgSave">Guardar</button></div>
+  </div>
+</div>
+
+<div class="modal" id="jsonModal">
+  <div class="dialog wide">
+    <h3 id="jsonTitle">JSON</h3>
+    <pre class="json" id="jsonBody" style="max-height:70vh;background:#080d1c;border-radius:10px;border:1px solid var(--line)"></pre>
+    <div class="actions"><button class="btn" id="jsonCopy">Copiar</button><button class="btn primary" id="jsonClose">Cerrar</button></div>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Utilidades
+   ===================================================================== */
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const TZ = "America/Guatemala";
+const fmtTime = (v, sec=false) => { if (!v) return "—"; const d = new Date(v); if (isNaN(d)) return String(v);
+  return d.toLocaleTimeString("es-GT", {timeZone: TZ, hour: "numeric", minute: "2-digit", ...(sec ? {second: "2-digit"} : {}), hour12: !sec}).replace(/\s?a\.?\s?m\.?/i, " am").replace(/\s?p\.?\s?m\.?/i, " pm"); };
+const fmtClock = (v) => { const d = v ? new Date(v) : new Date(); return d.toLocaleTimeString("es-GT", {timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false}); };
+const nowHHMM = () => new Date().toLocaleTimeString("es-GT", {timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false});
+const todayGT = () => new Date().toLocaleDateString("en-CA", {timeZone: TZ});
+const money = (n) => (n == null || isNaN(n)) ? "—" : "Q" + Number(n).toFixed(2);
+const STATUS_TEXT = {200:"OK",201:"Created",202:"Accepted",204:"No Content",400:"Bad Request",401:"Unauthorized",403:"Forbidden",404:"Not Found",409:"Conflict",422:"Unprocessable",429:"Too Many Requests",500:"Server Error",502:"Bad Gateway",503:"Unavailable"};
+const shortTok = (t) => t ? t.slice(0, 14) + "…" + t.slice(-6) : "—";
+const detailText = (data) => { const d = data && data.detail; if (!d) return typeof data === "string" ? data : ""; if (typeof d === "string") return d; if (d.message) return d.message; if (Array.isArray(d)) return d.map((x) => x.msg || JSON.stringify(x)).join("; "); return JSON.stringify(d); };
+
+function hlJSON(value) {
+  const str = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  return esc(str).replace(/(&quot;(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\&]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, (m, s, colon, bool) => {
+    if (s) return colon ? `<span class="k">${s}</span>${colon}` : `<span class="s">${s}</span>`;
+    if (bool) return `<span class="b">${m}</span>`;
+    if (m === "null") return `<span class="z">null</span>`;
+    return `<span class="n">${m}</span>`;
+  });
+}
+function abbreviate(v, depth = 0) {
+  if (Array.isArray(v)) { const max = depth === 0 ? 5 : 4; const out = v.slice(0, max).map((x) => abbreviate(x, depth + 1)); if (v.length > max) out.push(`… +${v.length - max} más`); return out; }
+  if (v && typeof v === "object") { const o = {}; for (const [k, x] of Object.entries(v)) o[k] = abbreviate(x, depth + 1); return o; }
+  if (typeof v === "string" && v.length > 140) return v.slice(0, 120) + "…";
+  return v;
+}
+function toast(msg, kind = "info", ms = 5200) { const el = document.createElement("div"); el.className = "toast " + kind; el.innerHTML = msg; $("#toasts").appendChild(el); setTimeout(() => el.remove(), ms); }
+function showJSON(title, data) { $("#jsonTitle").textContent = title; $("#jsonBody").innerHTML = hlJSON(data); $("#jsonModal").classList.add("show"); window.__lastJSON = data; }
+$("#jsonClose").onclick = () => $("#jsonModal").classList.remove("show");
+$("#jsonCopy").onclick = () => navigator.clipboard?.writeText(JSON.stringify(window.__lastJSON, null, 2)).then(() => toast("JSON copiado", "ok", 1800));
+document.querySelectorAll(".modal").forEach((m) => m.addEventListener("click", (e) => { if (e.target === m) m.classList.remove("show"); }));
+
+/* =====================================================================
+   Configuración
+   ===================================================================== */
+const CFG_KEY = "qorder-demo-cfg-v1";
+let SERVER = {target: "", internal_key_configured: false, defaults: {}};
+let cfg = {restaurantId: "", adminEmail: "", adminPassword: "", kdsUsername: "", kdsPin: "", opsEmail: "", opsPassword: "", whatsapp: "", studentEmail: "", studentName: "", studentCarne: "", remember: false};
+function loadCfg() { try { Object.assign(cfg, JSON.parse(localStorage.getItem(CFG_KEY) || "{}")); } catch (_) {} }
+function saveCfg() { const copy = {...cfg}; if (!cfg.remember) { delete copy.adminPassword; delete copy.kdsPin; delete copy.opsPassword; } try { localStorage.setItem(CFG_KEY, JSON.stringify(copy)); } catch (_) {} }
+function openCfg() {
+  $("#f-rid").value = cfg.restaurantId; $("#f-email").value = cfg.adminEmail; $("#f-pass").value = cfg.adminPassword;
+  $("#f-kdsu").value = cfg.kdsUsername; $("#f-pin").value = cfg.kdsPin; $("#f-opsemail").value = cfg.opsEmail || ""; $("#f-opspass").value = cfg.opsPassword || ""; $("#f-semail").value = cfg.studentEmail || ""; $("#f-sname").value = cfg.studentName || ""; $("#f-scarne").value = cfg.studentCarne || ""; $("#f-wa").value = cfg.whatsapp; $("#f-remember").checked = !!cfg.remember;
+  $("#cfgModal").classList.add("show"); setTimeout(() => (cfg.adminEmail ? $("#f-pass") : $("#f-email")).focus(), 50);
+}
+$("#btnConfig").onclick = openCfg;
+$("#cfgCancel").onclick = () => $("#cfgModal").classList.remove("show");
+$("#cfgSave").onclick = () => {
+  const wa = $("#f-wa").value.trim().replace(/\s|-/g, "");
+  if (wa && !/^\+502\d{8}$/.test(wa)) { toast("El WhatsApp debe tener el formato +502XXXXXXXX", "warn"); return; }
+  if ($("#f-semail").value.trim() && !wa) { toast("Para mostrar el registro también hace falta el WhatsApp", "warn"); return; }
+  Object.assign(cfg, {restaurantId: $("#f-rid").value.trim(), adminEmail: $("#f-email").value.trim(), adminPassword: $("#f-pass").value,
+    kdsUsername: $("#f-kdsu").value.trim(), kdsPin: $("#f-pin").value.trim(), opsEmail: $("#f-opsemail").value.trim(), opsPassword: $("#f-opspass").value, whatsapp: wa, studentEmail: $("#f-semail").value.trim(), studentName: $("#f-sname").value.trim(), studentCarne: $("#f-scarne").value.trim(), remember: $("#f-remember").checked});
+  saveCfg(); $("#cfgModal").classList.remove("show"); toast("Configuración guardada", "ok", 1800); renderFlow();
+};
+const cfgReady = () => cfg.adminEmail && cfg.adminPassword && cfg.kdsUsername && cfg.kdsPin;
+
+/* =====================================================================
+   Estado de la corrida
+   ===================================================================== */
+let ctx;
+function freshCtx() {
+  const run = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return {run, adminToken: null, kdsToken: null, kdsUserId: null, kdsUsername: null, restaurant: null, restaurantPublic: null,
+    shiftOpen: false, studentId: "DEMO-" + run, studentName: null, studentVerified: false, menu: [], cart: [], estimate: null,
+    order: null, orderId: null, otp: null, paymentLink: null, payMode: "mock", altOrder: null, failOrder: null,
+    myOrders: new Set(), notified: new Set(), greeted: false, opsToken: null, firstMessageAt: null, botTurns: [], onboard: null};
+}
+
+/* =====================================================================
+   Cliente HTTP (vía proxy local)
+   ===================================================================== */
+async function api({method = "GET", path, auth = "none", body, query}) {
+  const headers = {"Accept": "application/json"};
+  const shownHeaders = [];
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (auth === "internal") { headers["X-Demo-Internal"] = "1"; shownHeaders.push(["X-Internal-Api-Key", SERVER.internal_key_configured ? "•••••••• (la agrega el proxy, igual que el bot)" : "⚠ no configurada en el proxy"]); }
+  if (auth === "kds") { if (!ctx.kdsToken) throw new Error("Falta el token del KDS: ejecuta primero «Login del KDS»."); headers.Authorization = "Bearer " + ctx.kdsToken; shownHeaders.push(["Authorization", "Bearer " + shortTok(ctx.kdsToken) + "  (rol kds)"]); }
+  if (auth === "admin") { if (!ctx.adminToken) throw new Error("Falta el token del admin: ejecuta primero «Login del admin»."); headers.Authorization = "Bearer " + ctx.adminToken; shownHeaders.push(["Authorization", "Bearer " + shortTok(ctx.adminToken) + "  (rol admin)"]); }
+  if (auth === "ops") { if (!ctx.opsToken) throw new Error("Falta el token Dev/TI: ejecuta primero «Login Dev/TI»."); headers.Authorization = "Bearer " + ctx.opsToken; shownHeaders.push(["Authorization", "Bearer " + shortTok(ctx.opsToken) + "  (rol superadmin)"]); }
+  if (auth === "none") shownHeaders.push(["Authorization", "— (sin credenciales)"]);
+  const qs = query ? "?" + new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined && v !== null && v !== "")).toString() : "";
+  const started = performance.now();
+  let status = 0, data = null, ms = 0;
+  try {
+    const res = await fetch("/proxy" + path + qs, {method, headers, body: body !== undefined ? JSON.stringify(body) : undefined});
+    status = res.status;
+    ms = Number(res.headers.get("X-Demo-Upstream-Ms")) || Math.round(performance.now() - started);
+    const text = await res.text();
+    try { data = text ? JSON.parse(text) : null; } catch (_) { data = text; }
+  } catch (e) { status = 0; data = {detail: "No se pudo contactar al proxy local: " + e.message}; ms = Math.round(performance.now() - started); }
+  return {method, path, qs, status, data, ms, body, shownHeaders};
+}
+
+/* =====================================================================
+   Definición del flujo
+   ===================================================================== */
+const PHASES = [
+  {key: "boot", n: "0", title: "Arranque", desc: "La cocina y la administración inician sesión y se conectan en tiempo real"},
+  {key: "bot", n: "1", title: "El estudiante se registra y pide por WhatsApp", desc: "Registro con OTP por correo y rutas que llama el bot (function calling) con la llave interna"},
+  {key: "pay", n: "2", title: "La cocina acepta y se cobra", desc: "Aceptación → link de pago con hora límite → la solicitud se convierte en orden"},
+  {key: "deliver", n: "3", title: "Preparación y entrega", desc: "Cocina avanza el pedido y el mostrador valida el código (OTP)"},
+  {key: "admin", n: "4", title: "Panel de administración", desc: "Trazabilidad del pedido, log del día y KPIs"},
+  {key: "ops", n: "5", title: "Panel OPS (Dev/TI)", desc: "Lo que ve el equipo de desarrollo: todos los restaurantes, usuarios, salud de integraciones y métricas del proyecto"},
+  {key: "onboard", n: "+", title: "OPS: alta de un restaurante nuevo", desc: "Onboarding desde el panel Dev/TI (crea un restaurante real en la base)", optional: true},
+  {key: "agent", n: "+", title: "El agente conversacional real (LLM)", desc: "Un mensaje al orquestador de agent/ como si llegara por WhatsApp", optional: true},
+  {key: "reject", n: "+", title: "Escenario alterno: la cocina rechaza", desc: "Otra solicitud que la cocina rechaza por carga", optional: true},
+  {key: "fail", n: "+", title: "Escenario alterno: pago no confirmado", desc: "La pasarela reporta fallo y la solicitud se cancela", optional: true},
+  {key: "security", n: "+", title: "Seguridad y alcance", desc: "Rutas que deben rechazar sin credenciales o con el rol equivocado", optional: true},
+  {key: "close", n: "+", title: "Cierre de turno", desc: "La estación cierra su turno y recibe el resumen", optional: true},
+];
+
+const ICON_NEXT = "▶";
+const isMock = () => ctx.payMode === "mock";
+
+function pickCart(menu) {
+  const orderable = menu.filter((i) => i.available !== false && !i.dine_in_only && (i.remaining_stock == null || i.remaining_stock > 0));
+  const nonSpecial = orderable.filter((i) => !i.is_daily_special && !i.schedule_type);
+  const pool = nonSpecial.length ? nonSpecial : orderable;
+  const isDrink = (i) => /bebida/i.test(i.category || "");
+  const food = pool.filter((i) => !isDrink(i));
+  const drinks = pool.filter(isDrink);
+  const first = food[0] || pool[0];
+  if (!first) return [];
+  const cart = [{product_name: first.name, quantity: Math.min(4, Math.max(1, Math.ceil(26 / Math.max(1, first.price || 1))))}];
+  const mods = first.modifiers || [];
+  if (mods.length) cart[0].modifiers = [mods[0].name];
+  const second = drinks[0] || food[1];
+  if (second && second.name !== first.name) cart.push({product_name: second.name, quantity: 1});
+  return cart;
+}
+const cartText = (cart) => cart.map((i) => `${i.quantity}x ${i.product_name}${i.modifiers?.length ? " (" + i.modifiers.join(", ") + ")" : ""}`).join(", ");
+
+function setOrder(order) {
+  if (!order) return;
+  if (!ctx.orderId || order.id === ctx.orderId) {
+    ctx.order = {...(ctx.order || {}), ...order};
+    ctx.orderId = order.id;
+    if (order.otp_code) ctx.otp = order.otp_code;
+    if (order.payment_reference) ctx.paymentLink = order.payment_reference;
+    renderTracker();
+  }
+}
+
+const STEPS = [
+  // ---------------- Fase 0 ----------------
+  {id: "health", phase: "boot", actor: "system", method: "GET", path: "/health/", title: "La API y MongoDB están vivas",
+    desc: "Chequeo de salud del servicio desplegado en Render.",
+    call: () => ({method: "GET", path: "/health/"}),
+    ok: (r) => { setPill("#pillApi", "on"); }},
+  {id: "adminLogin", phase: "boot", actor: "admin", method: "POST", path: "/auth/admin/login", title: "Login del admin del restaurante",
+    desc: "Correo + contraseña → <b>JWT</b> con rol de administración. Con ese token se abre la consola de eventos en vivo (<code>/ws/admin</code>).",
+    call: () => ({method: "POST", path: "/auth/admin/login", body: {email: cfg.adminEmail, password: cfg.adminPassword}}),
+    mask: {password: "••••••••"},
+    ok: (r) => { ctx.adminToken = r.data.access_token; if (r.data.restaurant_id) { cfg.restaurantId = r.data.restaurant_id; saveCfg(); } if (r.data.restaurant_name) setRestaurantLabel(r.data.restaurant_name); connectAdminWS(); }},
+  {id: "adminRestaurant", phase: "boot", actor: "admin", method: "GET", path: "/api/admin/restaurant", title: "Datos del restaurante: horario y si está abierto ahora",
+    desc: "Si <code>is_open_now</code> es falso, el backend rechaza pedidos con 409 (regla de oro: solo se pide con el restaurante abierto).",
+    call: () => ({method: "GET", path: "/api/admin/restaurant", auth: "admin"}),
+    after: (r) => { if (r.data?.id) cfg.restaurantId = r.data.id; },
+    ok: (r, s) => { ctx.restaurant = r.data; setRestaurantLabel(r.data.name, r.data.location);
+      ctx.payMode = r.data.payment_gateway_configured ? "tilopay" : "mock";
+      if (!r.data.is_open_now) { s.note = {kind: "bad", text: "El restaurante aparece CERRADO ahora: estimar y crear el pedido responderán 409. Ajusta el horario desde el panel antes de grabar."}; toast("⚠ El restaurante está cerrado según su horario", "warn", 8000); }
+      else s.note = {kind: "good", text: `Abierto ahora · pagos: ${ctx.payMode === "tilopay" ? "Tilopay (link real)" : "simulados (webhook de prueba)"}`}; }},
+  {id: "kdsLogin", phase: "boot", actor: "kds", method: "POST", path: "/auth/kds/login", title: "Login del KDS (usuario + PIN)",
+    desc: "La pantalla de cocina entra con PIN y abre su canal <code>/ws/kds/{restaurant_id}</code>: desde aquí cada evento le llega en vivo.",
+    call: () => ({method: "POST", path: "/auth/kds/login", body: {username: cfg.kdsUsername, pin: cfg.kdsPin}}),
+    mask: {pin: "••••"},
+    ok: (r) => { ctx.kdsToken = r.data.access_token; ctx.kdsUserId = r.data.kds_user_id; ctx.kdsUsername = r.data.username;
+      if (r.data.restaurant_id && cfg.restaurantId && r.data.restaurant_id !== cfg.restaurantId) toast("El KDS pertenece a otro restaurante que el del admin", "warn"); if (!cfg.restaurantId) cfg.restaurantId = r.data.restaurant_id || "";
+      connectKdsWS(); }},
+  {id: "kdsMe", phase: "boot", actor: "kds", method: "GET", path: "/api/kds/me", title: "La estación consulta su configuración",
+    desc: "Prioridad, productos que recibe (filtro por categoría) y si está activa.",
+    call: () => ({method: "GET", path: "/api/kds/me", auth: "kds"})},
+  {id: "shiftCurrent", phase: "boot", actor: "kds", method: "GET", path: "/api/kds/shift/current", title: "¿Hay un turno abierto?",
+    desc: "<code>shift = null</code> → la pantalla muestra «Iniciar turno». Sin turno la estación no recibe pedidos.",
+    call: () => ({method: "GET", path: "/api/kds/shift/current", auth: "kds"}),
+    ok: (r) => { ctx.shiftOpen = !!(r.data.shift && !r.data.shift.stale); setStation(r.data.station_active); }},
+  {id: "shiftStart", phase: "boot", actor: "kds", method: "POST", path: "/api/kds/shift/start", title: "Iniciar turno: la estación empieza a recibir pedidos",
+    desc: "Abre el turno y activa la estación (llega <code>station_status</code> por WebSocket).",
+    skip: () => ctx.shiftOpen ? "Ya hay un turno abierto hoy: no hace falta abrir otro." : null,
+    call: () => ({method: "POST", path: "/api/kds/shift/start", auth: "kds"}),
+    tolerate: [409],
+    ok: (r) => { ctx.shiftOpen = true; setStation(true); }},
+
+  // ---------------- Fase I ----------------
+  {id: "register", phase: "bot", actor: "student", method: "POST", path: "/auth/register", title: "Registro en el portal web: WhatsApp + correo institucional",
+    desc: "Se guarda la cuenta sin verificar y se manda un OTP al correo (Resend). Límite de 3 solicitudes por número cada 24 h. Con <code>ENVIRONMENT=DEVELOPMENT</code> la respuesta trae <code>debug_otp_code</code>.",
+    skip: () => cfg.studentEmail && cfg.whatsapp ? null : "Sin correo UVG en ⚙ Configurar: no se muestra el registro.",
+    before: () => phoneSys("🌐 El estudiante abre el portal de registro"),
+    call: () => ({method: "POST", path: "/auth/register", body: {whatsapp_number: cfg.whatsapp, full_name: cfg.studentName || "Estudiante Demo", email: cfg.studentEmail, student_id: cfg.studentCarne || ("DEMO-" + ctx.run)}}),
+    ok: (r, s) => { ctx.regOtp = r.data.debug_otp_code || null; s.note = {kind: "good", text: ctx.regOtp ? `OTP enviado al correo (y devuelto en modo desarrollo: ${ctx.regOtp}).` : "OTP enviado al correo."}; }},
+  {id: "verifyOtp", phase: "bot", actor: "student", method: "POST", path: "/auth/verify-otp", title: "El estudiante escribe el código y su número queda verificado",
+    desc: "Máximo 5 intentos y 10 minutos de vigencia. Desde aquí el bot ya lo reconoce.",
+    skip: () => cfg.studentEmail && cfg.whatsapp ? null : "Sin registro en esta corrida.",
+    run: async (s, exec) => {
+      let code = ctx.regOtp;
+      if (!code) code = (window.prompt("Código OTP que llegó al correo:") || "").trim();
+      return exec({method: "POST", path: "/auth/verify-otp", body: {whatsapp_number: cfg.whatsapp, otp_code: code}});
+    },
+    ok: () => phoneSys("✅ Número verificado")},
+  {id: "waCheck", phase: "bot", actor: "student", method: "POST", path: "/auth/whatsapp/check", auth: "internal", title: "El bot identifica al estudiante por su WhatsApp",
+    desc: "Antes de contestar cualquier mensaje, el bot verifica que el número esté registrado y verificado.",
+    skip: () => cfg.whatsapp ? null : `Sin número configurado: se usa el estudiante de demo «${ctx.studentId}».`,
+    before: () => greet(),
+    call: () => ({method: "POST", path: "/auth/whatsapp/check", auth: "internal", body: {whatsapp_number: cfg.whatsapp}}),
+    ok: (r, s) => { if (r.data.status === "verified" && r.data.student_id) { ctx.studentId = r.data.student_id; ctx.studentName = r.data.full_name; ctx.studentVerified = true;
+        s.note = {kind: "good", text: `Estudiante verificado: ${r.data.full_name || r.data.student_id}. Las notificaciones reales de WhatsApp le llegarán a este número.`}; }
+      else s.note = {kind: "", text: `Estado «${r.data.status}»: se sigue con el estudiante de demo ${ctx.studentId}.`}; }},
+  {id: "memory", phase: "bot", actor: "student", method: "GET", path: "/api/users/{student_id}/memory", auth: "internal", title: "El bot carga la memoria del estudiante",
+    desc: "Gustos, restricciones y resúmenes de conversaciones anteriores (lo usa <code>agent/memory.py</code> para personalizar). Exige la llave interna porque el carné se puede adivinar.",
+    before: () => greet(),
+    call: () => ({method: "GET", path: `/api/users/${encodeURIComponent(ctx.studentId)}/memory`, auth: "internal"}), critical: false},
+  {id: "restaurants", phase: "bot", botTool: "list_restaurants", actor: "student", method: "GET", path: "/api/restaurants/", auth: "internal", title: "«¿Dónde puedo pedir?» → restaurantes y si están abiertos",
+    desc: "El bot lista los restaurantes activos con su estado calculado en el backend (horario + estaciones activas).",
+    before: () => { greet(); },
+    call: () => ({method: "GET", path: "/api/restaurants/", auth: "internal", query: {active_only: "true"}}),
+    ok: (r) => { const list = Array.isArray(r.data) ? r.data : []; ctx.restaurantPublic = list.find((x) => x.id === cfg.restaurantId) || null;
+      const lines = list.slice(0, 6).map((x) => `${x.id === cfg.restaurantId ? "👉 " : "• "}${x.name}${x.status ? (x.status === "open" ? " — abierto" : " — cerrado") : ""}`);
+      botSay(`Estos son los restaurantes disponibles:\n${lines.join("\n")}${list.length > 6 ? `\n… y ${list.length - 6} más` : ""}`); }},
+  {id: "menu", phase: "bot", botTool: "get_menu", actor: "student", method: "GET", path: "/api/menus/?restaurant_id={restaurant_id}", auth: "internal", title: "«¿Qué hay para comer?» → menú del día",
+    desc: "Menú con precios, modificadores, stock del día y estado del restaurante. Toca un producto en el teléfono para armar el carrito.",
+    before: () => studentSay(`¿Qué hay hoy en ${ctx.restaurant?.name || "el local"}?`),
+    call: () => ({method: "GET", path: "/api/menus/", auth: "internal", query: {restaurant_id: cfg.restaurantId}}),
+    ok: (r, s) => { ctx.menu = Array.isArray(r.data) ? r.data : []; ctx.cart = pickCart(ctx.menu);
+      if (!ctx.cart.length) { s.note = {kind: "bad", text: "El menú no tiene productos que se puedan pedir ahora."}; return; }
+      botMenu(ctx.menu); }},
+  {id: "estimate", phase: "bot", botTool: "estimate_order", actor: "student", method: "POST", path: "/api/orders/estimate", auth: "internal", title: "Cotización: total y hora estimada ANTES de confirmar",
+    desc: "Algoritmo ETC: cola actual de la estación + tiempo de preparación. Valida pedido mínimo, horario y que los productos vayan a la misma estación.",
+    showCart: true,
+    before: () => studentSay(`Quiero ${cartText(ctx.cart)}`),
+    run: async (s, exec) => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const r = await exec({method: "POST", path: "/api/orders/estimate", auth: "internal", body: {restaurant_id: cfg.restaurantId, items: ctx.cart}});
+        if (r.status < 400) return r;
+        const det = r.data?.detail;
+        if (r.status === 400 && det?.code === "below_minimum_order" && ctx.cart[0]) {
+          const unit = (ctx.menu.find((m) => m.name === ctx.cart[0].product_name)?.price) || 10;
+          ctx.cart[0].quantity += Math.max(1, Math.ceil((det.missing_amount || unit) / unit));
+          s.note = {kind: "", text: "No llegaba al pedido mínimo: el bot sube la cantidad y vuelve a cotizar."}; renderCard(s); continue;
+        }
+        if (r.status === 400 && /separado/i.test(detailText(r.data)) && ctx.cart.length > 1) {
+          ctx.cart = ctx.cart.slice(0, 1); s.note = {kind: "", text: "Los productos van a estaciones distintas: el bot cotiza solo el primero."}; renderCard(s); continue;
+        }
+        return r;
+      }
+    },
+    ok: (r) => { ctx.estimate = r.data;
+      botSay(`Tu pedido: ${cartText(ctx.cart)}\n${priceLines(r.data)}\nEstaría listo aprox. a las ${fmtTime(r.data.ready_at)}${r.data.queue_backlog_minutes ? ` (cola actual: ${r.data.queue_backlog_minutes} min)` : ""}.\n¿Lo confirmo?`); }},
+  {id: "create", phase: "bot", botTool: "create_order", actor: "student", method: "POST", path: "/api/orders/", auth: "internal", title: "El estudiante confirma → se crea la solicitud",
+    desc: "Queda <b>pending_acceptance</b> y se ofrece a la estación con mayor prioridad. El KDS la recibe al instante por WebSocket (<code>order_created</code>).",
+    before: () => studentSay("Sí, confírmalo ✅"),
+    call: () => ({method: "POST", path: "/api/orders/", auth: "internal", body: {student_id: ctx.studentId, restaurant_id: cfg.restaurantId, items: ctx.cart}}),
+    ok: (r, s) => { ctx.orderId = r.data.id; ctx.myOrders.add(r.data.id); setOrder(r.data); stamp("created", r.data.created_at);
+      if (r.data.offered_kds_id && ctx.kdsUserId && r.data.offered_kds_id !== ctx.kdsUserId) { s.note = {kind: "bad", text: "La solicitud se ofreció a OTRA estación del restaurante: este KDS no podrá aceptarla. Usa el usuario KDS que cubre estos productos o pausa la otra estación."}; }
+      botSay(`¡Listo! Envié tu solicitud #${r.data.request_number} a la cocina de ${ctx.restaurant?.name || "el restaurante"}. Te aviso por aquí en cuanto la acepten 👨‍🍳`); }},
+
+  {id: "convMetric", phase: "bot", actor: "student", method: "POST", path: "/api/internal/conversation-metrics", auth: "internal", title: "El bot reporta cuánto tardó la conversación (objetivo < 45 s)",
+    desc: "El agente manda los turnos con sus tiempos (LLM, herramientas, total). Es la evidencia que luego ve Dev/TI en <code>/api/metrics/conversation-times</code>. En la demo los tiempos son los de las llamadas reales y el LLM no participa (<code>llm_ms = 0</code>).",
+    needs: "orderId",
+    call: () => {
+      const created = Date.parse(ctx.order?.created_at) || Date.now();
+      const first = Math.min(Date.parse(ctx.firstMessageAt) || created - 30000, created - 1000);
+      const turns = ctx.botTurns.length ? ctx.botTurns : [{input_type: "text", handle_ms: 1000, tools: []}];
+      return {method: "POST", path: "/api/internal/conversation-metrics", auth: "internal",
+        body: {order_id: ctx.orderId, first_message_at: new Date(first).toISOString(), order_created_at: new Date(created).toISOString(), turns}};
+    }, critical: false},
+  {id: "memorySave", phase: "bot", actor: "student", method: "PUT", path: "/api/users/{student_id}/memory", auth: "internal", title: "El bot guarda lo aprendido (preferencias y resumen)",
+    desc: "Solo se reemplazan las secciones enviadas. En la próxima conversación el bot ya sabe qué le gusta.",
+    needs: "orderId",
+    call: () => ({method: "PUT", path: `/api/users/${encodeURIComponent(ctx.studentId)}/memory`, auth: "internal",
+      body: {preferences: {likes: ctx.cart.slice(0, 2).map((i) => i.product_name), dislikes: [], restrictions: [], usual_budget: ctx.order?.total_amount ?? null},
+        summaries: [{date: new Date().toISOString(), text: `Pidió ${cartText(ctx.cart)} en ${ctx.restaurant?.name || "el restaurante"} (demo).`}]}}), critical: false},
+
+  // ---------------- Fase II ----------------
+  {id: "queue", phase: "pay", actor: "kds", method: "GET", path: "/api/orders/active", title: "El KDS carga su cola de pedidos",
+    desc: "Solo ve los pedidos de su restaurante ofrecidos o asignados a su estación.",
+    call: () => ({method: "GET", path: "/api/orders/active", auth: "kds"}),
+    ok: (r, s) => { const list = Array.isArray(r.data) ? r.data : []; list.forEach((o) => kdsUpsert(o, null, false));
+      const mine = list.find((o) => o.id === ctx.orderId); s.note = mine ? {kind: "good", text: `La solicitud #${mine.request_number} está en la cola (${list.length} activas).`} : {kind: "", text: `${list.length} pedidos activos.`}; }},
+  {id: "accept", phase: "pay", actor: "kds", method: "PUT", path: "/api/orders/{order_id}/status", title: "Cocina ACEPTA → se genera el link de pago con hora límite",
+    desc: "Cambia a <b>accepted</b>, se crea el link (Tilopay o simulado) y se calcula la hora límite de pago. Eventos: <code>order_accepted</code> + <code>payment_link_sent</code> → WhatsApp al estudiante.",
+    needs: "orderId",
+    call: () => ({method: "PUT", path: `/api/orders/${ctx.orderId}/status`, auth: "kds", body: {pipeline_status: "accepted"}}),
+    ok: (r) => { setOrder(r.data); stamp("accepted", r.data.accepted_at);
+      if (r.data.payment_reference) ctx.payMode = /mock-bac-checkout/.test(r.data.payment_reference) ? "mock" : "tilopay";
+      notifyLater("order_accepted", r.data); }},
+  {id: "botStatus", phase: "pay", actor: "student", method: "GET", path: "/api/orders/{order_id}/status", auth: "internal", title: "«¿Cómo va mi pedido?» → estado para el bot",
+    desc: "Versión de solo lectura: sin items ni montos, con número de solicitud y hora límite de pago.",
+    needs: "orderId",
+    before: () => studentSay("¿Cómo va mi pedido?"),
+    call: () => ({method: "GET", path: `/api/orders/${ctx.orderId}/status`, auth: "internal"}),
+    ok: (r) => { const d = r.data; botSay(d.payment_status === "paid" ? `Tu orden #${d.order_number} está ${d.pipeline_status === "in_preparation" ? "en preparación" : "en cola"}. Lista aprox. ${d.ready_at_guatemala || fmtTime(d.ready_at)}.` :
+      `Tu solicitud #${d.request_number} ya fue aceptada ✅\nSolo falta el pago: tienes hasta las ${d.payment_expires_at_guatemala || fmtTime(d.payment_expires_at)}.`); }},
+  {id: "payment", phase: "pay", actor: "gateway", method: "POST", path: "/webhooks/bac-payment", title: "La pasarela confirma el pago → la solicitud se vuelve ORDEN",
+    desc: "<b>Simulación de la pasarela.</b> Con Tilopay, la pasarela avisa a <code>/webhooks/tilopay/{id}/{token}</code> y el backend <b>no confía en el aviso</b>: consulta a Tilopay el link de pago por su id y, si encuentra un pago aprobado, marca <code>payment_status = paid</code>. Este restaurante no tiene cuenta de Tilopay y el servidor tiene <code>SIMULATED_PAYMENTS_ENABLED=true</code>, así que el webhook simulado de BAC hace ese mismo cambio con <code>status: success</code>: pago confirmado, número de orden, código de retiro (OTP) y hora de entrega calculada con la cola. Con <code>status: failed</code> la solicitud se cancela (ver escenario alterno).",
+    needs: "orderId",
+    before: () => phoneSys("💳 El estudiante abre el link y paga"),
+    run: async (s, exec) => {
+      if (isMock()) return exec({method: "POST", path: "/webhooks/bac-payment", body: {order_id: ctx.orderId, status: "success"}});
+      s.note = {kind: "", html: `Pago real con Tilopay: <a href="${esc(ctx.paymentLink)}" target="_blank" rel="noopener" style="color:#9cd0ff">abrir link de pago ↗</a>. El demo consulta el estado cada 4 s hasta que se confirme.`};
+      renderCard(s); window.open(ctx.paymentLink, "_blank", "noopener");
+      const until = Date.now() + 10 * 60 * 1000; let last;
+      while (Date.now() < until && !s.cancel) {
+        last = await exec({method: "GET", path: `/api/orders/${ctx.orderId}/status`, auth: "internal"}, {replace: true});
+        if (last.status < 400 && last.data.payment_status === "paid") return last;
+        if (last.status < 400 && last.data.payment_status === "failed") return last;
+        await sleep(4000);
+      }
+      return last;
+    },
+    ok: (r) => { const o = r.data.order || r.data; setOrder(o); stamp("paid", o.paid_at || new Date().toISOString()); notifyLater("order_paid", ctx.order); }},
+
+  // ---------------- Fase III ----------------
+  {id: "prep", phase: "deliver", actor: "kds", method: "PUT", path: "/api/orders/{order_id}/status", title: "Cocina marca la orden EN PREPARACIÓN",
+    desc: "Solo se permite con el pago confirmado. Evento <code>order_in_preparation</code>.",
+    needs: "orderId",
+    call: () => ({method: "PUT", path: `/api/orders/${ctx.orderId}/status`, auth: "kds", body: {pipeline_status: "in_preparation"}}),
+    ok: (r) => { setOrder(r.data); stamp("cook", r.data.preparation_started_at); notifyLater("order_in_preparation", r.data); }},
+  {id: "ready", phase: "deliver", actor: "kds", method: "PUT", path: "/api/orders/{order_id}/status", title: "Cocina marca la orden LISTA para recoger",
+    desc: "Evento <code>order_ready</code> → WhatsApp «ya puedes pasar» con la ubicación y el código.",
+    needs: "orderId",
+    call: () => ({method: "PUT", path: `/api/orders/${ctx.orderId}/status`, auth: "kds", body: {pipeline_status: "ready_for_pickup"}}),
+    ok: (r) => { setOrder(r.data); stamp("ready", r.data.ready_marked_at); notifyLater("order_ready", r.data); }},
+  {id: "otpWrong", phase: "deliver", actor: "kds", method: "POST", path: "/api/orders/{order_id}/validate-otp", title: "Mostrador: código INCORRECTO → se rechaza y queda en el log",
+    desc: "Se espera <b>400</b>. El intento fallido queda registrado como <code>otp_failed</code>.",
+    needs: "orderId", expect: 400,
+    before: () => studentSay("Mi código es 0000 🤔"),
+    call: () => ({method: "POST", path: `/api/orders/${ctx.orderId}/validate-otp`, auth: "kds", body: {otp_code: ctx.otp === "0000" ? "1111" : "0000"}})},
+  {id: "otpOk", phase: "deliver", actor: "kds", method: "POST", path: "/api/orders/{order_id}/validate-otp", title: "Mostrador: código CORRECTO → orden ENTREGADA",
+    desc: "Cierra el ciclo: <b>delivered</b>. El ticket desaparece del KDS.",
+    needs: "orderId",
+    before: () => studentSay(`Perdón, es ${ctx.otp || "----"} 😅`),
+    call: () => ({method: "POST", path: `/api/orders/${ctx.orderId}/validate-otp`, auth: "kds", body: {otp_code: ctx.otp}}),
+    ok: (r) => { const o = r.data?.order || r.data; if (o && o.id) setOrder(o); else setOrder({id: ctx.orderId, pipeline_status: "delivered"});
+      ctx.order.pipeline_status = "delivered"; stamp("delivered", o?.delivered_at || new Date().toISOString()); renderTracker(); notifyLater("order_delivered", ctx.order); kdsRemove(ctx.orderId, "Entregada"); }},
+  {id: "queueAfter", phase: "deliver", actor: "kds", method: "GET", path: "/api/orders/active", title: "Verificación: la orden ya no está en la cola del KDS",
+    call: () => ({method: "GET", path: "/api/orders/active", auth: "kds"}),
+    ok: (r, s) => { const still = (Array.isArray(r.data) ? r.data : []).some((o) => o.id === ctx.orderId); s.note = still ? {kind: "bad", text: "La orden sigue en la cola."} : {kind: "good", text: "La orden entregada ya no aparece en la cola."}; }},
+
+  // ---------------- Fase IV ----------------
+  {id: "adminMenu", phase: "admin", actor: "admin", method: "GET", path: "/api/admin/menu", title: "Catálogo del restaurante (lo que edita el admin)",
+    desc: "CRUD de productos, categorías con icono, calendario de almuerzos y carga masiva por Excel (<code>/api/admin/menu/import</code>, <code>/template</code>, <code>/export</code>).",
+    call: () => ({method: "GET", path: "/api/admin/menu", auth: "admin"}), critical: false},
+  {id: "kdsStatus", phase: "admin", actor: "admin", method: "GET", path: "/api/admin/kds-users/status", title: "Estaciones KDS conectadas en este momento",
+    desc: "El ping del WebSocket de cada pantalla alimenta este estado.",
+    call: () => ({method: "GET", path: "/api/admin/kds-users/status", auth: "admin"}), critical: false},
+  {id: "pause", phase: "admin", actor: "admin", method: "PUT", path: "/api/admin/kds-users/{kds_user_id}/active", title: "El admin PAUSA la estación desde el panel (mira el KDS)",
+    desc: "Llega <code>station_status</code> por WebSocket a la pantalla del KDS. Mientras todas las estaciones están en pausa, el restaurante aparece cerrado (<code>kitchen_out_of_service</code>) y el bot no deja pedir. La pausa queda registrada en el turno.",
+    needs: "kdsUserId",
+    call: () => ({method: "PUT", path: `/api/admin/kds-users/${ctx.kdsUserId}/active`, auth: "admin", body: {active: false}}),
+    ok: () => setStation(false), critical: false},
+  {id: "resume", phase: "admin", actor: "admin", method: "PUT", path: "/api/admin/kds-users/{kds_user_id}/active", title: "El admin REANUDA la estación",
+    needs: "kdsUserId",
+    call: () => ({method: "PUT", path: `/api/admin/kds-users/${ctx.kdsUserId}/active`, auth: "admin", body: {active: true}}),
+    ok: () => setStation(true), critical: false},
+  {id: "events", phase: "admin", actor: "admin", method: "GET", path: "/api/admin/events", title: "Log de eventos del día (lo mismo que llega por /ws/admin)",
+    call: () => ({method: "GET", path: "/api/admin/events", auth: "admin"}), critical: false},
+  {id: "lookup", phase: "admin", actor: "admin", method: "GET", path: "/api/admin/orders/lookup?order_number={n}", title: "Buscar la orden por su número",
+    needs: "orderId",
+    call: () => ({method: "GET", path: "/api/admin/orders/lookup", auth: "admin", query: ctx.order?.order_number ? {order_number: ctx.order.order_number} : {request_number: ctx.order?.request_number}}), critical: false},
+  {id: "timeline", phase: "admin", actor: "admin", method: "GET", path: "/api/admin/orders/{order_id}/timeline", title: "Línea de tiempo completa del pedido",
+    desc: "Cada transición con hora, actor y mensaje legible — auditoría de punta a punta.",
+    needs: "orderId", render: "timeline",
+    call: () => ({method: "GET", path: `/api/admin/orders/${ctx.orderId}/timeline`, auth: "admin"}), critical: false},
+  {id: "kpis", phase: "admin", actor: "admin", method: "GET", path: "/api/metrics/kpis?from={hoy}&to={hoy}", title: "KPIs del restaurante de hoy",
+    call: () => ({method: "GET", path: "/api/metrics/kpis", auth: "admin", query: {from: todayGT(), to: todayGT()}}), critical: false},
+  {id: "adminShifts", phase: "admin", actor: "admin", method: "GET", path: "/api/admin/shifts", title: "Resumen del día: KPIs, turnos y tickets de cada estación",
+    call: () => ({method: "GET", path: "/api/admin/shifts", auth: "admin"}), critical: false},
+  {id: "shiftKpis", phase: "admin", actor: "kds", method: "GET", path: "/api/kds/shift/current", title: "KPIs parciales del turno de la estación",
+    render: "shift",
+    call: () => ({method: "GET", path: "/api/kds/shift/current", auth: "kds"}), critical: false},
+
+  // ---------------- Fase V: OPS ----------------
+  {id: "opsLogin", phase: "ops", actor: "ops", method: "POST", path: "/auth/admin/login", title: "Login Dev/TI (rol superadmin)",
+    desc: "Mismo login que el admin, pero el token sale con rol <b>superadmin</b>: ve todos los restaurantes. La consola de eventos cambia a la vista global.",
+    skip: () => cfg.opsEmail && cfg.opsPassword ? null : "Sin credenciales Dev/TI en ⚙ Configurar (se crean con scripts/seed_demo_restaurant.py --ops-email).",
+    call: () => ({method: "POST", path: "/auth/admin/login", body: {email: cfg.opsEmail, password: cfg.opsPassword}}),
+    mask: {password: "••••••••"},
+    ok: (r) => { ctx.opsToken = r.data.access_token; connectAdminWS(); }},
+  ...[
+    ["opsMe", "GET", "/auth/admin/me", "Quién soy: rol y alcance del token", null, {}],
+    ["opsHealth", "GET", "/health/integrations", "Salud de las integraciones externas (OpenAI y WhatsApp Cloud API)",
+      "Estado de las plataformas y validez de nuestras llaves y tokens, con caché de 60 s. Solo Dev/TI: expone la calidad del número de WhatsApp.", {}],
+    ["opsRestaurants", "GET", "/api/ti/restaurants", "Todos los restaurantes: horario, admins, estaciones y si tienen pasarela", null, {}],
+    ["opsAdmins", "GET", "/api/ti/restaurant-users", "Usuarios administradores de cada restaurante",
+      "Incluye si ya definieron su contraseña (<code>password_pending</code>). Desde aquí se crean admins y se reenvía el enlace de contraseña.", {}],
+    ["opsKds", "GET", "/api/ti/kds-users", "Estaciones KDS de todos los restaurantes", null, {}],
+    ["opsEvents", "GET", "/api/ti/events", "Consola general de eventos del día (todos los restaurantes)", null, {}],
+    ["opsKpis", "GET", "/api/metrics/kpis?scope=global", "KPIs generales del sistema", "Sin el plato más pedido: es una vista de operación, no de un restaurante.", {scope: "global"}],
+    ["opsConv", "GET", "/api/metrics/conversation-times", "Tiempos de conversación del agente (percentiles, % bajo 45 s)",
+      "Se alimenta de <code>POST /api/internal/conversation-metrics</code> (paso del bot). Es evidencia del proyecto, por eso solo la ve Dev/TI.", {}],
+  ].map(([id, method, path, title, desc, query]) => ({id, phase: "ops", actor: "ops", method, path, title, desc,
+    skip: () => ctx.opsToken ? null : "Sin sesión Dev/TI.",
+    call: () => ({method, path: path.split("?")[0], auth: "ops", query: Object.keys(query).length ? query : undefined}), critical: false})),
+
+  // ---------------- Extras ----------------
+  {id: "onboard", phase: "onboard", actor: "ops", method: "POST", path: "/api/ti/restaurants", title: "Dar de alta un restaurante con su administrador",
+    desc: "Crea el restaurante (horario por defecto), su admin sin contraseña y un producto de ejemplo, y manda el correo de bienvenida para que el admin cree su contraseña. El correo va a tu propia dirección con <code>+demo</code>.",
+    skip: () => ctx.opsToken ? null : "Requiere el login Dev/TI (fase 5).",
+    call: () => { const [u, d] = (cfg.opsEmail || "ops@example.com").split("@");
+      return {method: "POST", path: "/api/ti/restaurants", auth: "ops", body: {restaurant_name: `Restaurante Demo ${ctx.run}`, admin_username: `Admin Demo ${ctx.run}`,
+        admin_email: `${u}+demo${ctx.run.toLowerCase()}@${d}`, location: "Creado desde el Demo Runner", service_fee: 0}}; },
+    ok: (r, s) => { ctx.onboard = r.data; s.note = {kind: "good", text: `Restaurante ${r.data.restaurant?.name} creado. Correo de bienvenida: ${r.data.email_sent ? "enviado" : "no se pudo enviar"}.`}; }},
+  {id: "onboardList", phase: "onboard", actor: "ops", method: "GET", path: "/api/ti/restaurant-users?restaurant_id={id}", title: "El nuevo admin aparece con la contraseña pendiente",
+    needs: "onboard",
+    call: () => ({method: "GET", path: "/api/ti/restaurant-users", auth: "ops", query: {restaurant_id: ctx.onboard.restaurant?.id}})},
+  {id: "agentMsg", phase: "agent", actor: "student", method: "POST", path: "/webhooks/whatsapp", auth: "internal", title: "Mensaje al orquestador LLM (como si llegara de Meta)",
+    desc: "El backend pasa el texto a <code>agent/</code> (function calling con OpenAI); el agente usa las mismas rutas del bot de la fase 1. Puede tardar unos segundos.",
+    before: () => studentSay("¿Qué restaurantes están abiertos ahora?"),
+    call: () => ({method: "POST", path: "/webhooks/whatsapp", auth: "internal", body: {user_id: cfg.whatsapp || "+50200000000", message: "¿Qué restaurantes están abiertos ahora?"}}),
+    ok: (r) => { if (r.data?.reply) botSay(r.data.reply, "🤖 Respuesta real del agente (OpenAI)"); }},
+
+  {id: "rejCreate", phase: "reject", actor: "student", method: "POST", path: "/api/orders/", auth: "internal", title: "El estudiante hace otra solicitud",
+    before: () => studentSay(`Quiero pedir otra vez: ${cartText(ctx.cart.slice(0, 1))}`),
+    call: () => ({method: "POST", path: "/api/orders/", auth: "internal", body: {student_id: ctx.studentId, restaurant_id: cfg.restaurantId, items: ctx.cart.slice(0, 1)}}),
+    ok: (r) => { ctx.altOrder = r.data; ctx.myOrders.add(r.data.id); botSay(`Envié tu solicitud #${r.data.request_number} a la cocina.`); }},
+  {id: "rejReject", phase: "reject", actor: "kds", method: "POST", path: "/api/orders/{order_id}/reject", title: "Cocina RECHAZA por carga (kitchen_load)",
+    desc: "Si hay otra estación que cubre los productos, la solicitud pasa a esa estación; si no, se rechaza y se avisa al estudiante.",
+    needs: "altOrder",
+    call: () => ({method: "POST", path: `/api/orders/${ctx.altOrder.id}/reject`, auth: "kds", body: {reason: "kitchen_load"}}),
+    ok: (r, s) => { if (r.data.pipeline_status === "pending_acceptance") s.note = {kind: "", text: "Se ofreció a otra estación del restaurante."}; else { kdsRemove(r.data.id, "Rechazada"); notifyLater("order_rejected", r.data); } }},
+  {id: "failCreate", phase: "fail", actor: "student", method: "POST", path: "/api/orders/", auth: "internal", title: "Otra solicitud",
+    skip: () => isMock() ? null : "El restaurante cobra con Tilopay real: el fallo de pago no se simula.",
+    call: () => ({method: "POST", path: "/api/orders/", auth: "internal", body: {student_id: ctx.studentId, restaurant_id: cfg.restaurantId, items: ctx.cart.slice(0, 1)}}),
+    ok: (r) => { ctx.failOrder = r.data; ctx.myOrders.add(r.data.id); }},
+  {id: "failAccept", phase: "fail", actor: "kds", method: "PUT", path: "/api/orders/{order_id}/status", title: "Cocina la acepta",
+    needs: "failOrder", skip: () => isMock() ? null : "Solo con pagos simulados.",
+    call: () => ({method: "PUT", path: `/api/orders/${ctx.failOrder.id}/status`, auth: "kds", body: {pipeline_status: "accepted"}})},
+  {id: "failPay", phase: "fail", actor: "gateway", method: "POST", path: "/webhooks/bac-payment", title: "Pasarela: pago FALLIDO → solicitud cancelada",
+    needs: "failOrder", skip: () => isMock() ? null : "Solo con pagos simulados.",
+    call: () => ({method: "POST", path: "/webhooks/bac-payment", body: {order_id: ctx.failOrder.id, status: "failed"}}),
+    ok: (r) => { kdsRemove(ctx.failOrder.id, "Cancelada"); notifyLater("order_payment_failed", r.data.order || ctx.failOrder); }},
+  {id: "sec1", phase: "security", actor: "system", method: "GET", path: "/api/orders/active", title: "Cola del KDS sin token → 401", expect: 401,
+    call: () => ({method: "GET", path: "/api/orders/active"})},
+  {id: "sec2", phase: "security", actor: "system", method: "POST", path: "/api/orders/", title: "Crear pedido sin la llave del bot → 401", expect: 401,
+    call: () => ({method: "POST", path: "/api/orders/", body: {student_id: "intruso", restaurant_id: cfg.restaurantId, items: [{product_name: "x", quantity: 1}]}})},
+  {id: "sec3", phase: "security", actor: "kds", method: "GET", path: "/api/admin/restaurant", title: "Token de KDS en el panel de admin → 403", expect: 403,
+    call: () => ({method: "GET", path: "/api/admin/restaurant", auth: "kds"})},
+  {id: "sec4", phase: "security", actor: "admin", method: "GET", path: "/api/ti/restaurants", title: "Admin de restaurante en el panel Dev/TI → 403", expect: 403,
+    call: () => ({method: "GET", path: "/api/ti/restaurants", auth: "admin"})},
+  {id: "shiftEnd", phase: "close", actor: "kds", method: "POST", path: "/api/kds/shift/end", title: "Finalizar turno → resumen (tickets + KPIs)",
+    desc: "Pausa la estación. Responde 409 si quedan solicitudes por aceptar.", render: "shift",
+    call: () => ({method: "POST", path: "/api/kds/shift/end", auth: "kds"}),
+    ok: () => { ctx.shiftOpen = false; setStation(false); }},
+];
+const stepState = {};
+STEPS.forEach((s, i) => { s.index = i + 1; });
+const mainSteps = () => STEPS.filter((s) => !PHASES.find((p) => p.key === s.phase).optional);
+
+/* =====================================================================
+   Render del panel de endpoints
+   ===================================================================== */
+function st(s) { return stepState[s.id] || (stepState[s.id] = {id: s.id, status: "idle", exchanges: [], note: null, open: false}); }
+function pathHTML(p) { return esc(p).replace(/\{([^}]+)\}/g, '<span class="p">{$1}</span>'); }
+const ACTOR = {ops: "🧑‍💻 Dev/TI", student: "🧑‍🎓 Bot / Estudiante", kds: "👨‍🍳 KDS", admin: "🛠 Admin", gateway: "💳 Pasarela", system: "⚙ Sistema"};
+const STATE_LABEL = {idle: "", running: "ejecutando…", ok: "✓", expected: "✓ rechazo esperado", error: "✕ error", skipped: "omitido"};
+
+function renderFlow() {
+  const list = $("#flowList"); list.innerHTML = "";
+  for (const ph of PHASES) {
+    const h = document.createElement("div"); h.className = "phase" + (ph.optional ? " optional" : "");
+    h.innerHTML = `<span class="num">${esc(ph.n)}</span><div><div class="t">${esc(ph.title)}</div><div class="d">${esc(ph.desc)}</div></div><span class="spacer"></span><button class="btn ghost gbtn" data-phase="${ph.key}">▶ fase</button>`;
+    list.appendChild(h);
+    STEPS.filter((s) => s.phase === ph.key).forEach((s) => { const el = document.createElement("div"); el.id = "card-" + s.id; list.appendChild(el); renderCard(st(s)); });
+  }
+  list.querySelectorAll("[data-phase]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); runPhase(b.dataset.phase); });
+  updateProgress();
+}
+function renderCard(state) {
+  const s = STEPS.find((x) => x.id === state.id); const el = document.getElementById("card-" + s.id); if (!el) return;
+  const auth = s.auth || (s.call ? (safeCall(s)?.auth) : null);
+  el.className = `card ${state.status}${state.open ? " open" : ""}`;
+  const lock = auth === "internal" ? '<span class="lock">🔑 X-Internal-Api-Key</span>' : auth === "kds" ? '<span class="lock">JWT kds</span>' : auth === "admin" ? '<span class="lock">JWT admin</span>' : auth === "ops" ? '<span class="lock">JWT superadmin</span>' : "";
+  let body = "";
+  if (s.desc) body += `<div class="desc">${s.desc}</div>`;
+  if (s.showCart && ctx.cart.length) body += `<div class="cart">${ctx.cart.map((i) => `<span>${esc(i.quantity)}× ${esc(i.product_name)}${i.modifiers?.length ? " · " + esc(i.modifiers.join(", ")) : ""}</span>`).join("")}</div>`;
+  if (state.note) body += `<div class="note ${state.note.kind || ""}">${state.note.html || esc(state.note.text)}</div>`;
+  state.exchanges.forEach((x, i) => { body += exchangeHTML(s, x, i); });
+  if (state.status === "idle" && !state.exchanges.length) body += `<div class="muted" style="font-size:11.5px">Presiona ▶ para ejecutar este endpoint contra el backend.</div>`;
+  el.innerHTML = `<div class="card-head"><span class="idx">${String(s.index).padStart(2, "0")}</span><span class="m ${s.method}">${s.method}</span>
+    <div class="grow"><div class="path">${pathHTML(s.path)}</div><div class="title">${esc(s.title)}</div></div>
+    <span class="actor ${s.actor}">${ACTOR[s.actor]}</span>${lock}<span class="state">${STATE_LABEL[state.status]}</span>
+    <button class="play" title="Ejecutar">${state.status === "running" ? "◌" : ICON_NEXT}</button></div><div class="card-body">${body}</div>`;
+  el.querySelector(".card-head").onclick = (e) => { if (e.target.closest(".play")) return; state.open = !state.open; renderCard(state); };
+  el.querySelector(".play").onclick = (e) => { e.stopPropagation(); runStep(s); };
+  el.querySelectorAll("[data-full]").forEach((b) => b.onclick = () => { const x = state.exchanges[+b.dataset.full]; showJSON(`${x.method} ${x.path}${x.qs} → ${x.status}`, x.data); });
+}
+function safeCall(s) { try { return s.call ? s.call() : null; } catch (_) { return null; } }
+function maskBody(s, body) { if (!body || !s.mask) return body; const b = {...body}; for (const k of Object.keys(s.mask)) if (k in b) b[k] = s.mask[k]; return b; }
+function exchangeHTML(s, x, i) {
+  const cls = x.status >= 500 || x.status === 0 ? "s5" : x.status >= 400 ? "s4" : "s2";
+  const expected = s.expect && x.status === s.expect;
+  const tolerated = s.tolerate && s.tolerate.includes(x.status);
+  let out = `<div class="exch"><div class="rq"><span class="m ${x.method}">${x.method}</span><code>${esc(x.path + x.qs)}</code></div>`;
+  out += `<div class="hd">${x.shownHeaders.map(([k, v]) => `<b>${esc(k)}:</b> ${esc(v)}`).join("<br>")}</div>`;
+  if (x.body !== undefined) out += `<div class="lbl">Request body</div><pre class="json">${hlJSON(maskBody(s, x.body))}</pre>`;
+  if (x.status === -1) out += `<div class="rs"><span class="ms">esperando respuesta…</span></div></div>`;
+  else {
+    out += `<div class="rs"><span class="code ${cls}">${x.status || "ERR"} ${esc(STATUS_TEXT[x.status] || "")}</span><span class="ms">${x.ms} ms</span>${expected ? '<span class="tag">esperado</span>' : tolerated ? '<span class="tag">aceptable</span>' : ""}<span style="flex:1"></span><button class="linkbtn" data-full="${i}">JSON completo ↗</button></div>`;
+    out += responseExtra(s, x) + `<pre class="json">${hlJSON(abbreviate(x.data))}</pre></div>`;
+  }
+  return out;
+}
+function responseExtra(s, x) {
+  if (x.status >= 400 || !x.data) return "";
+  if (s.render === "timeline" && Array.isArray(x.data.events)) {
+    return `<div style="padding:4px 12px 4px"><div class="mini-tl">${x.data.events.map((e) => `<div><time>${esc(fmtClock(e.created_at))}</time>${esc(e.message || e.event)}</div>`).join("")}</div></div>`;
+  }
+  if (s.render === "shift" && x.data.kpis) {
+    const k = x.data.kpis;
+    const tiles = [["total_tickets", "tickets"], ["aceptadas", "aceptadas"], ["entregadas", "entregadas"], ["total_dinero", "vendido", money], ["ticket_promedio", "ticket prom.", money], ["tiempo_preparacion_promedio_min", "min prep. prom.", (v) => v == null ? "—" : Number(v).toFixed(1)]];
+    return `<div style="padding:0 10px 4px"><div class="kpis">${tiles.map(([key, label, f]) => `<div class="kpi"><b>${esc(f ? f(k[key]) : k[key])}</b><span>${label}</span></div>`).join("")}</div></div>`;
+  }
+  return "";
+}
+function updateProgress() {
+  const main = mainSteps(); const done = main.filter((s) => ["ok", "expected", "skipped"].includes(st(s).status)).length;
+  $("#progressLabel").textContent = `${done} / ${main.length}`; $("#progressBar").style.width = (100 * done / main.length) + "%";
+}
+
+/* =====================================================================
+   Motor de ejecución
+   ===================================================================== */
+let busy = false, playing = false;
+async function runStep(s, {fromPlay = false} = {}) {
+  if (busy) { toast("Espera a que termine el paso en curso", "warn", 1800); return false; }
+  if (!cfgReady()) { openCfg(); toast("Completa la configuración antes de ejecutar", "warn"); return false; }
+  const state = st(s);
+  busy = true; state.status = "running"; state.open = true; state.exchanges = []; state.note = null; state.cancel = false;
+  // colapsar las demás tarjetas para mantener la vista limpia durante la grabación
+  Object.values(stepState).forEach((o) => { if (o !== state && o.status !== "running") { o.open = false; renderCard(o); } });
+  renderCard(state);
+  document.getElementById("card-" + s.id).scrollIntoView({behavior: "smooth", block: "center"});
+  let result = false;
+  try {
+    const skip = s.skip ? s.skip() : null;
+    if (skip) { state.status = "skipped"; state.note = {kind: "", text: skip}; result = true; return true; }
+    if (s.needs && !ctx[s.needs]) throw new Error(s.needs === "orderId" ? "Primero hay que crear la solicitud (paso «El estudiante confirma»)." : "Falta el paso anterior de esta fase.");
+    if (s.before) s.before();
+    const exec = async (req, opts = {}) => {
+      const pending = {method: req.method || "GET", path: req.path, qs: req.query ? "?" + new URLSearchParams(req.query) : "", status: -1, body: req.body, shownHeaders: [], data: null, ms: 0};
+      if (opts.replace && state.exchanges.length) state.exchanges[state.exchanges.length - 1] = pending; else state.exchanges.push(pending);
+      renderCard(state);
+      const r = await api(req);
+      state.exchanges[state.exchanges.indexOf(pending)] = r; renderCard(state);
+      return r;
+    };
+    const r = s.run ? await s.run(state, exec) : await exec(s.call());
+    if (!r) throw new Error("Sin respuesta");
+    if (s.phase === "bot" && s.botTool && r.status < 400) ctx.botTurns.push({input_type: "text", llm_ms: 0, tools_ms: r.ms, handle_ms: r.ms, tools: [s.botTool]});
+    if (s.after && r.status < 300) s.after(r);
+    const okStatus = s.expect ? r.status === s.expect : (r.status >= 200 && r.status < 300) || (s.tolerate || []).includes(r.status);
+    if (okStatus) {
+      state.status = s.expect ? "expected" : "ok";
+      if (r.status < 300 && s.ok) s.ok(r, state);
+      result = true;
+    } else {
+      state.status = "error";
+      const msg = detailText(r.data) || (r.status ? `HTTP ${r.status}` : "Error de red");
+      state.note = {kind: "bad", text: (s.expect ? `Se esperaba ${s.expect} y llegó ${r.status}. ` : "") + msg + hintFor(r)};
+      result = s.critical === false;
+    }
+  } catch (e) {
+    state.status = "error"; state.note = {kind: "bad", text: e.message}; result = false;
+  } finally {
+    busy = false; renderCard(state); updateProgress();
+  }
+  return result;
+}
+function hintFor(r) {
+  if (r.status === 401 && /Internal-Api-Key/i.test(detailText(r.data))) return " → Arranca el proxy con la variable INTERNAL_API_KEY.";
+  if (r.status === 503 && /INTERNAL_API_KEY/.test(detailText(r.data))) return " → El backend no tiene INTERNAL_API_KEY configurada.";
+  if (r.status === 409 && r.data?.detail?.code) return ` (código ${r.data.detail.code})`;
+  if (r.status === 404 && /simulado/i.test(detailText(r.data))) return " → En prod, define SIMULATED_PAYMENTS_ENABLED=true o usa Tilopay.";
+  if (/Tilopay/i.test(detailText(r.data)) && /configurad/i.test(detailText(r.data))) return " → El local no tiene Tilopay: en Render define SIMULATED_PAYMENTS_ENABLED=true para la demo.";
+  if (r.status === 409 && /kitchen|cerrad/i.test(detailText(r.data))) return " → Revisa el horario del restaurante o que la estación tenga turno abierto.";
+  return "";
+}
+async function playAll() {
+  if (playing) { playing = false; setPlayBtn(); return; }
+  if (!cfgReady()) { openCfg(); return; }
+  playing = true; setPlayBtn();
+  for (const s of mainSteps()) {
+    if (!playing) break;
+    const stt = st(s).status; if (["ok", "expected", "skipped"].includes(stt)) continue;
+    const ok = await runStep(s, {fromPlay: true});
+    if (!ok) { playing = false; toast(`El flujo se detuvo en «${esc(s.title)}»`, "err", 7000); break; }
+    await sleep(+$("#speed").value);
+  }
+  if (playing) toast("✅ Flujo completo: de la solicitud por WhatsApp a la entrega en mostrador", "ok", 7000);
+  playing = false; setPlayBtn();
+}
+async function runPhase(key) {
+  for (const s of STEPS.filter((x) => x.phase === key)) { const ok = await runStep(s); if (!ok) break; await sleep(+$("#speed").value); }
+}
+function nextStep() {
+  const s = mainSteps().find((x) => !["ok", "expected", "skipped"].includes(st(x).status)) || STEPS.find((x) => st(x).status === "idle");
+  if (s) runStep(s); else toast("No quedan pasos pendientes", "info", 2000);
+}
+function setPlayBtn() { const b = $("#btnPlay"); b.classList.toggle("playing", playing); b.textContent = playing ? "⏸ Pausar" : "▶ Reproducir flujo"; }
+$("#btnPlay").onclick = playAll;
+$("#btnNext").onclick = nextStep;
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input,select,textarea") || document.querySelector(".modal.show")) return;
+  if (e.key === "ArrowRight") { e.preventDefault(); nextStep(); }
+  if (e.key === " ") { e.preventDefault(); playAll(); }
+});
+
+/* =====================================================================
+   Tracker del pedido
+   ===================================================================== */
+const STAGES = [["created", "Solicitud", "📝"], ["accepted", "Aceptada", "👍"], ["paid", "Pagada", "💳"], ["cook", "En cocina", "🍳"], ["ready", "Lista", "🛎️"], ["delivered", "Entregada", "✅"]];
+const stamps = {};
+function stamp(k, t) { stamps[k] = stamps[k] || t || new Date().toISOString(); renderTracker(); }
+function stageOf(o) {
+  if (!o) return -1;
+  if (o.pipeline_status === "delivered") return 5;
+  if (o.pipeline_status === "ready_for_pickup") return 4;
+  if (o.pipeline_status === "in_preparation") return 3;
+  if (o.pipeline_status === "accepted") return o.payment_status === "paid" ? 2 : 1;
+  if (o.pipeline_status === "pending_acceptance") return 0;
+  return -2;
+}
+function renderTracker() {
+  const o = ctx.order; const cur = stageOf(o); const failed = o && ["rejected", "cancelled"].includes(o.pipeline_status);
+  $("#stepper").innerHTML = STAGES.map(([k, label, icon], i) => {
+    const cls = failed && i === 0 ? "fail" : cur === 5 && i === 5 ? "done" : i < cur ? "done" : i === cur ? "current" : "";
+    return `<div class="st ${cls}"><div class="dot">${icon}</div><div class="lb">${label}</div><div class="tm">${stamps[k] ? esc(fmtClock(stamps[k])) : ""}</div></div>`;
+  }).join("");
+  if (!o) { $("#chips").innerHTML = `<div class="empty" style="grid-column:1/4">Sin pedido todavía · <kbd>Espacio</kbd> reproduce · <kbd>→</kbd> siguiente paso</div>`; return; }
+  const deadline = o.payment_status !== "paid" && o.payment_expires_at ? countdown(o.payment_expires_at) : null;
+  const chips = [["Solicitud", o.request_number ? "#" + o.request_number : "—"], ["Orden", o.order_number ? "#" + o.order_number : "—"], ["Total", money(o.total_amount)],
+    deadline ? ["Paga antes de", deadline, "hot"] : ["Listo aprox.", o.ready_at ? fmtTime(o.ready_at) : "—"], ["Código retiro", o.otp_code || ctx.otp || "····", "otp"], ["Estado", (o.pipeline_status || "—").replace(/_/g, " ")]];
+  $("#chips").innerHTML = chips.map(([l, v, c]) => `<div class="chip ${c || ""}"><span>${l}</span><b>${esc(v)}</b></div>`).join("");
+}
+function countdown(iso) { const ms = new Date(iso) - Date.now(); if (ms <= 0) return "vencido"; const m = Math.floor(ms / 60000), s = Math.floor(ms % 60000 / 1000); return `${fmtTime(iso)} · ${m}:${String(s).padStart(2, "0")}`; }
+setInterval(() => { if (ctx?.order && ctx.order.payment_status !== "paid" && ctx.order.payment_expires_at) renderTracker(); }, 1000);
+
+/* =====================================================================
+   Teléfono (vista del estudiante)
+   ===================================================================== */
+function bubble(html, dir = "in", tag) {
+  const el = document.createElement("div"); el.className = "bub " + dir;
+  el.innerHTML = (tag ? `<span class="nt">${tag}</span>` : "") + html + `<span class="t">${nowHHMM()}${dir === "out" ? " ✓✓" : ""}</span>`;
+  $("#chat").appendChild(el); $("#chat").scrollTop = $("#chat").scrollHeight; return el;
+}
+const linkify = (t) => esc(t).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+function studentSay(t) { bubble(esc(t), "out"); }
+function phoneSys(t) { const el = document.createElement("div"); el.className = "wa-sys"; el.textContent = t; $("#chat").appendChild(el); $("#chat").scrollTop = $("#chat").scrollHeight; }
+function botSay(t, tag) { typing(); setTimeout(() => { untype(); bubble(linkify(t), "in", tag); }, 450); }
+function typing() { untype(); const el = document.createElement("div"); el.className = "bub in typing-b"; el.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>'; el.style.padding = "0"; $("#chat").appendChild(el); $("#chat").scrollTop = $("#chat").scrollHeight; $("#waStatus").textContent = "escribiendo…"; }
+function untype() { document.querySelectorAll(".typing-b").forEach((e) => e.remove()); $("#waStatus").textContent = "en línea"; }
+function greet() {
+  if (ctx.greeted) return; ctx.greeted = true; ctx.firstMessageAt = new Date().toISOString();
+  phoneSys("Hoy · conversación por WhatsApp");
+  studentSay("Hola 👋 quiero pedir comida");
+  botSay(`¡Hola${ctx.studentName ? " " + ctx.studentName.split(" ")[0] : ""}! Soy el asistente de QOrder 🍽️ Te ayudo a pedir sin hacer cola.`);
+}
+function priceLines(d) { return d.service_fee > 0 ? `Subtotal: ${money(d.subtotal_amount)}\nTarifa de servicio: ${money(d.service_fee)}\nTotal: ${money(d.total_amount)}` : `Total: ${money(d.total_amount)}`; }
+function botMenu(menu) {
+  typing();
+  setTimeout(() => {
+    untype();
+    const items = menu.filter((i) => i.available !== false).slice(0, 9);
+    const sel = new Set(ctx.cart.map((c) => c.product_name));
+    const el = bubble(`<b>Menú de hoy · ${esc(ctx.restaurant?.name || "")}</b>\n` + items.map((i) => `<div class="menu-it ${sel.has(i.name) ? "sel" : ""}" data-name="${esc(i.name)}"><span>${esc(i.name)}<em> · ${esc(i.category || "")}</em></span><b>${money(i.price)}</b></div>`).join("") + (menu.length > 9 ? `<em style="color:#8696a0;font-size:11px">… y ${menu.length - 9} más</em>` : ""), "in");
+    el.querySelectorAll(".menu-it").forEach((row) => row.onclick = () => toggleCart(row));
+  }, 500);
+}
+function toggleCart(row) {
+  if (st(STEPS.find((s) => s.id === "estimate")).status !== "idle" && ctx.orderId) { toast("El pedido ya se creó; inicia una nueva demo para cambiar el carrito", "warn", 2500); return; }
+  const name = row.dataset.name; const i = ctx.cart.findIndex((c) => c.product_name === name);
+  if (i >= 0) ctx.cart.splice(i, 1); else ctx.cart.push({product_name: name, quantity: 1});
+  row.classList.toggle("sel", i < 0);
+  renderCard(st(STEPS.find((s) => s.id === "estimate")));
+  toast("Carrito: " + (cartText(ctx.cart) || "vacío"), "info", 1800);
+}
+// Notificaciones automáticas (mismos textos que src/services/notification_templates.py)
+function describeItems(o) { return (o.items || []).map((i) => (i.quantity !== 1 ? `${i.quantity}x ` : "") + i.product_name).join(", ") || "sin items"; }
+function amountLines(o) { const fee = Number(o.service_fee || 0), total = Number(o.total_amount || 0); return fee > 0 ? `Subtotal: ${money(o.subtotal_amount ?? total - fee)}\nTarifa de servicio: ${money(fee)}\nTotal a pagar: ${money(total)}` : `Total a pagar: ${money(total)}`; }
+function notifyLater(event, o) { setTimeout(() => notifyPhone(event, o, {}), 1200); }
+function notifyPhone(event, o, extra) {
+  if (!o || !o.id || !ctx.myOrders.has(o.id)) return;
+  const key = event + ":" + o.id; if (ctx.notified.has(key)) return; ctx.notified.add(key);
+  const tag = `📲 Notificación automática · ${event}`;
+  let text = null, pay = null;
+  if (event === "order_accepted") {
+    const link = o.payment_reference || ctx.paymentLink;
+    text = `Tu pedido #${o.request_number} fue aceptado.\nPedido: ${describeItems(o)}\nHora estimada de entrega: ${fmtTime(extra.preview_ready_at || o.ready_at)}\n${amountLines(o)}\n${o.payment_expires_at ? `Paga antes de las ${fmtTime(o.payment_expires_at)}.\n` : ""}Si tardas en pagar, la hora de entrega puede variar.`;
+    pay = link;
+  } else if (event === "order_paid") text = `Pago confirmado. Tu orden es la #${o.order_number}.\nHora estimada de entrega: ${fmtTime(o.ready_at)}\nCódigo para recoger en mostrador: ${o.otp_code || ctx.otp || "----"}`;
+  else if (event === "order_ready") text = `Tu pedido ya está listo para recoger en ${ctx.restaurant?.name || "el restaurante"}.\n${ctx.restaurant?.location ? "Dónde: " + ctx.restaurant.location + "\n" : ""}Código para recoger en mostrador: ${o.otp_code || ctx.otp || "----"}`;
+  else if (event === "order_delivered") text = "Pedido entregado. ¡Gracias por tu compra!";
+  else if (event === "order_rejected") text = `Tu pedido no pudo ser aceptado: la cocina tiene mucha carga en este momento.\nPedido: ${describeItems(o)}\nIntenta más tarde.`;
+  else if (event === "order_payment_failed") text = `No se pudo confirmar el pago de tu pedido y se canceló.\nPedido: ${describeItems(o)}\nSi quieres, puedes volver a hacer el pedido.`;
+  else if (event === "order_in_preparation") { phoneSys(`👩‍🍳 Orden #${o.order_number || ""} en preparación`); return; }
+  if (!text) return;
+  typing();
+  setTimeout(() => { untype(); const el = bubble(linkify(text) + (pay ? `<a class="paybtn" href="${esc(pay)}" target="_blank" rel="noopener">Pagar ${money(o.total_amount)}</a>` : ""), "in", tag); }, 550);
+}
+
+/* =====================================================================
+   WebSockets (vía proxy local)
+   ===================================================================== */
+const wsUrl = (p) => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws-proxy" + p;
+let kdsWS = null, adminWS = null, kdsPing = null, adminPing = null;
+function setPill(sel, cls) { const el = $(sel); el.classList.remove("on", "bad", "warn"); if (cls) el.classList.add(cls); }
+function connectKdsWS() {
+  if (kdsWS) { try { kdsWS.onclose = null; kdsWS.close(); } catch (_) {} }
+  const rid = cfg.restaurantId; const token = ctx.kdsToken; if (!token) return;
+  setPill("#pillKds", "warn"); $("#kdsSub").textContent = `WS /ws/kds/${rid.slice(0, 6)}… · ${ctx.kdsUsername || ""}`;
+  const ws = new WebSocket(wsUrl(`/ws/kds/${rid}?token=${encodeURIComponent(token)}`)); kdsWS = ws;
+  ws.onopen = () => { setPill("#pillKds", "on"); kdsFoot("Conectado · esperando eventos…"); clearInterval(kdsPing); kdsPing = setInterval(() => ws.readyState === 1 && ws.send("ping"), 25000); };
+  ws.onmessage = (ev) => { if (ev.data === "pong") return; let m; try { m = JSON.parse(ev.data); } catch (_) { return; } onKdsMessage(m); };
+  ws.onclose = (ev) => { setPill("#pillKds", "bad"); clearInterval(kdsPing); kdsFoot(`Desconectado (${ev.code}${ev.reason ? " · " + esc(ev.reason) : ""})`);
+    if (kdsWS === ws && ctx.kdsToken === token && ev.code !== 1008) setTimeout(() => kdsWS === ws && connectKdsWS(), 2500); };
+}
+function connectAdminWS() {
+  if (adminWS) { try { adminWS.onclose = null; adminWS.close(); } catch (_) {} }
+  const token = ctx.opsToken || ctx.adminToken; if (!token) return;
+  setPill("#pillAdmin", "warn");
+  $("#logSub").textContent = ctx.opsToken ? "WS /ws/admin · vista Dev/TI (todos los restaurantes)" : "WS /ws/admin · vista del admin del restaurante";
+  const ws = new WebSocket(wsUrl(`/ws/admin?token=${encodeURIComponent(token)}`)); adminWS = ws;
+  ws.onopen = () => { setPill("#pillAdmin", "on"); clearInterval(adminPing); adminPing = setInterval(() => ws.readyState === 1 && ws.send("ping"), 25000); };
+  ws.onmessage = (ev) => { if (ev.data === "pong") return; let m; try { m = JSON.parse(ev.data); } catch (_) { return; } onAdminMessage(m); };
+  ws.onclose = (ev) => { setPill("#pillAdmin", "bad"); clearInterval(adminPing);
+    if (adminWS === ws && (ctx.opsToken || ctx.adminToken) === token && ev.code !== 1008) setTimeout(() => adminWS === ws && connectAdminWS(), 2500); };
+}
+let lastKdsMsg = null;
+function kdsFoot(html) { $("#kdsFoot").innerHTML = html; }
+function onKdsMessage(m) {
+  lastKdsMsg = m;
+  if (m.type === "station_status") { setStation(m.active ?? m.station?.active); kdsFoot(`<code>station_status</code> · estación ${m.active ?? m.station?.active ? "activa" : "en pausa"} <span style="flex:1"></span><button class="linkbtn" id="kdsJson">{ } JSON</button>`); bindKdsJson(); return; }
+  if (!m.event || !m.order) return;
+  const o = m.order;
+  kdsFoot(`<code>${esc(m.event)}</code> · ${esc(m.message || "")} <span style="flex:1"></span><span class="ms">${fmtClock()}</span><button class="linkbtn" id="kdsJson">{ } JSON</button>`); bindKdsJson();
+  if (["order_delivered"].includes(m.event)) kdsRemove(o.id, "Entregada");
+  else if (["order_rejected", "order_cancelled", "order_payment_failed", "payment_link_expired"].includes(m.event) || ["rejected", "cancelled"].includes(o.pipeline_status)) kdsRemove(o.id, m.event === "order_rejected" ? "Rechazada" : "Cancelada");
+  else if (m.event === "order_rejected_by_station" && o.offered_kds_id !== ctx.kdsUserId) kdsRemove(o.id, "Pasó a otra estación");
+  else kdsUpsert(o, m.event, true);
+  if (o.id === ctx.orderId) {
+    setOrder(o);
+    const map = {order_created: "created", order_accepted: "accepted", order_paid: "paid", order_in_preparation: "cook", order_ready: "ready", order_delivered: "delivered"};
+    if (map[m.event]) stamp(map[m.event], m.event_record?.created_at || new Date().toISOString());
+  }
+  notifyPhone(m.event, o, m);
+}
+function bindKdsJson() { const b = $("#kdsJson"); if (b) b.onclick = () => showJSON("Último mensaje del WebSocket del KDS", lastKdsMsg); }
+function setStation(active) { const p = $("#stationPill"); p.classList.remove("on", "bad"); p.classList.add(active ? "on" : "bad"); p.lastChild.textContent = active ? "Estación activa" : "Estación en pausa"; }
+
+/* ---------- Tablero KDS ---------- */
+const tickets = new Map();
+function colFor(o) {
+  if (o.pipeline_status === "pending_acceptance") return "new";
+  if (o.pipeline_status === "accepted") return o.payment_status === "paid" ? "cook" : "pay";
+  if (o.pipeline_status === "in_preparation") return "cook";
+  if (o.pipeline_status === "ready_for_pickup") return "ready";
+  return null;
+}
+function kdsUpsert(o, event, flash) {
+  const col = colFor(o); if (!col) return;
+  if (o.offered_kds_id && ctx.kdsUserId && o.pipeline_status === "pending_acceptance" && o.offered_kds_id !== ctx.kdsUserId) return;
+  let el = tickets.get(o.id);
+  if (!el) { el = document.createElement("div"); tickets.set(o.id, el); }
+  el.className = "tk " + ({pay: "c-pay", cook: "c-cook", ready: "c-ready"}[col] || "");
+  const label = o.order_number ? ["ORDEN", "#" + o.order_number] : ["SOLICITUD", "#" + o.request_number];
+  const badge = col === "cook" && o.pipeline_status === "accepted" ? "EN COLA" : col === "cook" ? "PREPARANDO" : col === "pay" ? "ESPERANDO PAGO" : col === "ready" ? "LISTA" : "NUEVA";
+  el.innerHTML = `<span class="badge">${badge}</span><div class="h"><b><small>${label[0]}</small>${esc(label[1])}</b><small>${esc(fmtClock(o.created_at))}</small></div>
+    <ul>${(o.items || []).map((i) => `<li><b>${esc(i.quantity)}×</b><span>${esc(i.product_name)}${(i.modifiers || []).length ? `<em>+ ${esc(i.modifiers.map((m) => m.name || m).join(", "))}</em>` : ""}${i.notes ? `<em>📝 ${esc(i.notes)}</em>` : ""}</span></li>`).join("")}</ul>
+    <div class="f"><span>${money(o.total_amount)}</span><span>${o.ready_at ? "listo " + esc(fmtTime(o.ready_at)) : o.payment_expires_at && col === "pay" ? "paga antes " + esc(fmtTime(o.payment_expires_at)) : ""}</span></div>`;
+  const target = $("#col-" + col);
+  if (el.parentElement !== target) target.prepend(el);
+  if (flash) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+  updateCounts();
+}
+function kdsRemove(id, label) {
+  const el = tickets.get(id); if (!el) return; tickets.delete(id);
+  const b = el.querySelector(".badge"); if (b) b.textContent = label.toUpperCase();
+  el.classList.add("leaving"); setTimeout(() => { el.remove(); updateCounts(); }, 1400);
+}
+function updateCounts() { ["new", "pay", "cook", "ready"].forEach((c) => $("#c-" + c).textContent = $("#col-" + c).children.length); }
+
+/* ---------- Consola admin ---------- */
+const EV_CLASS = {order_created: "c-created", order_offered: "c-created", order_accepted: "c-accepted", payment_link_sent: "c-pay", order_paid: "c-pay", order_in_preparation: "c-cook", order_ready: "c-ready", customer_notified: "c-info", order_delivered: "c-done", otp_failed: "c-bad", order_rejected_by_station: "c-bad", order_rejected: "c-bad", order_payment_failed: "c-bad", payment_link_expired: "c-bad", order_cancelled: "c-bad"};
+let logN = 0; const seenSeq = new Set();
+function onAdminMessage(m) {
+  if (m.type === "backfill") {
+    const evs = (m.events || []).slice(-25);
+    $("#log").innerHTML = ""; seenSeq.clear(); logN = 0;
+    if ((m.events || []).length) { sepRow(`backfill · ${m.events.length} eventos de hoy (${esc(m.date)})${m.events.length > 25 ? " · últimos 25" : ""}`); evs.forEach((e) => logRow(e, true)); }
+    sepRow("— en vivo —"); return;
+  }
+  if (m.type === "event" && m.event) logRow(m.event, false);
+}
+function sepRow(t) { const el = document.createElement("div"); el.className = "sep"; el.innerHTML = t; $("#log").appendChild(el); }
+function logRow(e, old) {
+  if (e.seq != null) { if (seenSeq.has(e.seq)) return; seenSeq.add(e.seq); }
+  const mine = ctx.myOrders.has(e.order_id);
+  const el = document.createElement("div"); el.className = "row " + (old ? "old" : "new"); el.dataset.oid = e.order_id || "";
+  const who = e.actor && e.actor.username ? `<i> · ${esc(e.actor.type)} ${esc(e.actor.username)}</i>` : e.actor && e.actor.type ? `<i> · ${esc(e.actor.type)}</i>` : "";
+  el.innerHTML = `<span class="seq">#${esc(e.seq ?? "")}</span><span class="tm">${esc(fmtClock(e.created_at))}</span><span class="ev ${EV_CLASS[e.event] || "c-info"}">${esc(e.event)}</span><span class="msg">${esc(e.message || "")}${who}</span>`;
+  el.onclick = () => showJSON(`order_events · #${e.seq} ${e.event}`, e);
+  if ($("#onlyMine").checked && !mine) el.style.display = "none";
+  $("#log").appendChild(el); logN++; $("#logCount").textContent = logN + " eventos";
+  $("#log").scrollTop = $("#log").scrollHeight;
+}
+$("#onlyMine").onchange = () => document.querySelectorAll("#log .row").forEach((r) => { const mine = ctx.myOrders.has(r.dataset.oid); r.style.display = $("#onlyMine").checked && !mine ? "none" : ""; });
+
+/* =====================================================================
+   Arranque / reinicio
+   ===================================================================== */
+function setRestaurantLabel(name, loc) { $("#restaurantLabel").innerHTML = `${esc(name)}<small>${esc(loc || ctx.restaurant?.location || "Restaurante de prueba")}</small>`; }
+function resetAll() {
+  playing = false; setPlayBtn();
+  [kdsWS, adminWS].forEach((w) => { if (w) { w.onclose = null; try { w.close(); } catch (_) {} } });
+  kdsWS = adminWS = null; clearInterval(kdsPing); clearInterval(adminPing);
+  ctx = freshCtx(); for (const k in stepState) delete stepState[k]; for (const k in stamps) delete stamps[k];
+  tickets.clear(); ["new", "pay", "cook", "ready"].forEach((c) => $("#col-" + c).innerHTML = ""); updateCounts();
+  $("#log").innerHTML = '<div class="sep">El log se llena al iniciar sesión el admin (paso 02)</div>'; logN = 0; seenSeq.clear(); $("#logCount").textContent = "0";
+  $("#chat").innerHTML = '<div class="wa-sys">La conversación empieza en la fase 1</div>'; kdsFoot("Esperando conexión del KDS…");
+  ["#pillKds", "#pillAdmin", "#stationPill"].forEach((p) => setPill(p, null)); $("#stationPill").lastChild.textContent = "Estación";
+  renderFlow(); renderTracker();
+}
+$("#btnReset").onclick = () => { resetAll(); toast("Listo para una nueva corrida", "ok", 1800); };
+
+(async function init() {
+  loadCfg();
+  try { SERVER = await (await fetch("/demo-config")).json(); } catch (_) { toast("No se pudo leer /demo-config: ¿está corriendo demo_server.py?", "err", 9000); }
+  if (!cfg.restaurantId) cfg.restaurantId = SERVER.defaults?.restaurant_id || "";
+  if (!cfg.adminEmail && SERVER.defaults?.admin_email) cfg.adminEmail = SERVER.defaults.admin_email;
+  if (!cfg.kdsUsername && SERVER.defaults?.kds_username) cfg.kdsUsername = SERVER.defaults.kds_username;
+  $("#targetLabel").textContent = "→ " + (SERVER.target || "?");
+  if (!SERVER.internal_key_configured) { const b = $("#keyBanner"); b.style.display = "block"; b.innerHTML = "⚠ El proxy no tiene <b>INTERNAL_API_KEY</b>: las rutas del bot (menú, cotizar, crear pedido) responderán 401. Reinicia <code>demo_server.py</code> con la variable definida."; }
+  resetAll();
+  setRestaurantLabel("Restaurante de prueba", "se detecta al iniciar sesión el admin");
+  if (!cfgReady()) openCfg();
+  // Ping de salud silencioso para el indicador de la API
+  api({method: "GET", path: "/health/"}).then((r) => setPill("#pillApi", r.status === 200 ? "on" : "bad"));
+})();
+</script>
+</body>
+</html>

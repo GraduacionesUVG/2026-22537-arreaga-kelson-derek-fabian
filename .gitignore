@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Variables de entorno (nunca subir credenciales)
+.env
+.env.*
+!.env.example
+
+# Pruebas / caché
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Dependencias de Node (si aplica)
+node_modules/
+
+# Editor / sistema operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

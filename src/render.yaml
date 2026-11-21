@@ -1,0 +1,130 @@
+# Blueprint extraido de Render (https://render.com/docs/infrastructure-as-code).
+
+services:
+  - type: web
+    name: gp-agent-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /health/
+    envVars:
+      - key: ENVIRONMENT
+        value: PRODUCTION
+      - key: PROJECT_NAME
+        value: GP-Agent-Backend
+      - key: JWT_SECRET_KEY
+        generateValue: true # Render genera un valor aleatorio fuerte
+      # Cifra el número de WhatsApp de los estudiantes (src/core/pii.py). NO regenerarla:
+      # si cambia, los números guardados ya no se pueden leer.
+      - key: USER_DATA_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: "480"
+      - key: OTP_CODE_EXPIRE_MINUTES
+        value: "10"
+      - key: MAX_VERIFICATION_REQUESTS
+        value: "3"
+      - key: VERIFICATION_REQUEST_WINDOW_HOURS
+        value: "24"
+      - key: MAX_OTP_ATTEMPTS
+        value: "5"
+      - key: INACTIVE_USER_TTL_DAYS
+        value: "180"
+      - key: BACKEND_BASE_URL
+        value: https://gp-agent-backend.onrender.com
+      - key: PROD_LOGIN_URL
+        sync: false
+      # Panel de administración (frontend): base de los enlaces de "restablecer contraseña".
+      - key: ADMIN_FRONTEND_URL
+        sync: false
+      # URLs de los frontends autorizados por CORS, separadas por coma.
+      - key: CORS_ORIGINS
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+
+      # --- Mongo Atlas---
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        value: gp_agent_prod
+
+      # --- Correo de verificacion (API HTTP de Resend, no SMTP -- Render
+      # free bloquea los puertos SMTP, ver src/integrations/email_client.py) ---
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM_ADDRESS
+        sync: false
+
+      # --- Orquestador LLM (agent/) ---
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ORCHESTRATOR_MODEL
+        value: gpt-4o-mini
+      - key: TRANSCRIPTION_MODEL
+        value: whisper-1
+
+      # --- WhatsApp (Meta Cloud API) ---
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+
+      # --- Pasarela de pagos Tilopay ---
+      # Cada restaurante carga SU cuenta desde el panel; aqui
+      # solo va la clave que cifra esas credenciales en Mongo. NO regenerarla:
+      # si cambia, cada restaurante tiene que volver a cargar sus credenciales.
+      - key: PAYMENT_CREDENTIALS_SECRET
+        generateValue: true
+      - key: TILOPAY_WEBHOOK_SECRET
+        sync: false
+      # Descomentar solo para demos: permite pagos simulados en restaurantes sin cuenta.
+      - key: SIMULATED_PAYMENTS_ENABLED
+        value: "true"
+
+      # --- Microsoft Entra ID (SSO, no implementado todavia) ---
+      - key: ENTRA_CLIENT_ID
+        sync: false
+      - key: ENTRA_TENANT_ID
+        sync: false
+      - key: ENTRA_CLIENT_SECRET
+        sync: false
+
+  # Segundo servicio: el bot de WhatsApp (agent/webhook.py), proceso propio
+  # y separado del backend. dockerContext
+  # apunta a agent/ (su propio requirements.txt, no usa uv/pyproject.toml).
+  - type: web
+    name: gp-agent-whatsapp-bot
+    runtime: docker
+    dockerfilePath: ./agent/Dockerfile
+    dockerContext: ./agent
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: BACKEND_API_URL
+        value: https://gp-agent-backend.onrender.com # ajustar si el backend quedo con otro `name`
+      # OBLIGATORIO. Mismo valor que INTERNAL_API_KEY en gp-agent-backend (arriba):
+      # agent/backend_client.py lo manda como X-Internal-Api-Key en cada llamada
+      # al backend, y el backend lo exige en todas las rutas que usa el agente.
+      - key: INTERNAL_API_KEY
+        sync: false
+
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ORCHESTRATOR_MODEL
+        value: gpt-4o-mini
+
+      # --- WhatsApp Cloud API (Meta for Developers) -- ver agent/.env.example ---
+      - key: VERIFY_TOKEN
+        sync: false
+      # App Secret de Meta: verifica la firma de cada mensaje entrante (ver agent/.env.example).
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
